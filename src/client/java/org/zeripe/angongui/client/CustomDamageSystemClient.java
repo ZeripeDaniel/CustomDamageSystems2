@@ -9,7 +9,7 @@ public class CustomDamageSystemClient implements ClientModInitializer {
     public void onInitializeClient() {
         NetworkHandler.register();
         InputHandler.register();
-        HudOverlayRenderer.register();
+        CombatQuickslotRenderer.register();
         DamageNumberRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(LocalStatManager::tick);
     }

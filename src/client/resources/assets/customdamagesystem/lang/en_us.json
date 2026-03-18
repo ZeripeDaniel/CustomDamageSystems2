@@ -20,5 +20,10 @@
   "ui.customdamagesystem.stat.luck": "Luck",
   "ui.customdamagesystem.stat.active_buffs": "Active Buffs",
   "ui.customdamagesystem.stat.time_min_sec": "%1$dm %2$ds",
-  "ui.customdamagesystem.stat.time_sec": "%1$ds"
+  "ui.customdamagesystem.stat.time_sec": "%1$ds",
+  "ui.customdamagesystem.mode.life": "[Life Mode]",
+  "ui.customdamagesystem.mode.combat": "[Combat Mode]",
+  "ui.customdamagesystem.mode.life_bracket": "[LIFE MODE]",
+  "ui.customdamagesystem.mode.combat_bracket": "[COMBAT MODE]",
+  "ui.customdamagesystem.mode.skill_used": "Skill Trigger: %1$s"
 }

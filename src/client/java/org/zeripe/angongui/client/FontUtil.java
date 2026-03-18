@@ -27,7 +27,15 @@ public final class FontUtil {
         return g.drawString(font, notosans(text), x, y, color, shadow);
     }
 
+    public static int drawHeirof(GuiGraphics g, Font font, String text, int x, int y, int color, boolean shadow) {
+        return g.drawString(font, heirof(text), x, y, color, shadow);
+    }
+
     public static int width(Font font, String text) {
         return font.width(notosans(text));
+    }
+
+    public static int widthHeirof(Font font, String text) {
+        return font.width(heirof(text));
     }
 }

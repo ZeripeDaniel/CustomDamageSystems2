@@ -52,6 +52,10 @@ public final class HitCooldownRegistry {
     }
 
     public int resolve(DamageSource source, ServerPlayer attacker) {
+        return resolve(source, attacker, 0.0, false);
+    }
+
+    public int resolve(DamageSource source, ServerPlayer attacker, double customAttackSpeed, boolean ignoreVanillaAttackSpeed) {
         if (source.getEntity() == null || attacker == null) {
             return defaultTicks;
         }
@@ -59,6 +63,13 @@ public final class HitCooldownRegistry {
         Integer manualTicks = weaponCooldownTicks.get(weapon);
         if (manualTicks != null) {
             return Math.max(1, manualTicks);
+        }
+        if (customAttackSpeed > 0.0) {
+            int ticks = (int) Math.ceil(20.0 / customAttackSpeed);
+            return Math.max(minAttackSpeedTicks, Math.min(maxAttackSpeedTicks, ticks));
+        }
+        if (ignoreVanillaAttackSpeed) {
+            return defaultTicks;
         }
         if (useVanillaAttackSpeed) {
             AttributeInstance attackSpeedAttr = attacker.getAttribute(Attributes.ATTACK_SPEED);

@@ -25,10 +25,10 @@ public final class HudOverlayRenderer {
     private static final int TEXT_COLOR = 0xFFFFFFFF;
     private static final int TEXT_SHADOW = 0x88000000;
 
-    private static final int BAR_W = 160;
-    private static final int BAR_H = 10;
-    private static final int BAR_GAP = 3;
-    private static final int BOTTOM_OFFSET = 40;
+    private static final int BOX_W = 30;
+    private static final int BOX_H = 40;
+    private static final int BOTTOM_OFFSET = 14;
+    private static final float TINY_TEXT_SCALE = 0.62f;
 
     private HudOverlayRenderer() {}
 
@@ -46,41 +46,49 @@ public final class HudOverlayRenderer {
 
         ClientState.PlayerStats stats = ClientState.get().getPlayerStats();
 
-        int baseX = (screenW - BAR_W) / 2;
-        int mpY = screenH - BOTTOM_OFFSET;
-        int hpY = mpY - BAR_H - BAR_GAP;
+        int baseX = (screenW - BOX_W) / 2;
+        int baseY = screenH - BOX_H - BOTTOM_OFFSET;
 
         float hpRatio = stats.maxHp() > 0 ? Mth.clamp((float) stats.currentHp() / stats.maxHp(), 0f, 1f) : 0f;
-        boolean lowHp = hpRatio < 0.25f;
-        drawStatusBar(g, baseX, hpY, BAR_W, BAR_H, hpRatio, lowHp ? HP_LOW_TOP : HP_TOP, lowHp ? HP_LOW_BOT : HP_BOT);
-
-        String hpText = NUMBER_FORMAT.format(stats.currentHp()) + " / " + NUMBER_FORMAT.format(stats.maxHp());
-        int hpTextW = FontUtil.width(font, hpText);
-        int hpTextX = baseX + (BAR_W - hpTextW) / 2;
-        int hpTextY = hpY + (BAR_H - 8) / 2;
-        FontUtil.draw(g, font, hpText, hpTextX + 1, hpTextY + 1, TEXT_SHADOW, false);
-        FontUtil.draw(g, font, hpText, hpTextX, hpTextY, TEXT_COLOR, false);
-
         float mpRatio = stats.maxMp() > 0 ? Mth.clamp((float) stats.currentMp() / stats.maxMp(), 0f, 1f) : 0f;
-        drawStatusBar(g, baseX, mpY, BAR_W, BAR_H, mpRatio, MP_TOP, MP_BOT);
 
-        String mpText = NUMBER_FORMAT.format(stats.currentMp()) + " / " + NUMBER_FORMAT.format(stats.maxMp());
-        int mpTextW = FontUtil.width(font, mpText);
-        int mpTextX = baseX + (BAR_W - mpTextW) / 2;
-        int mpTextY = mpY + (BAR_H - 8) / 2;
-        FontUtil.draw(g, font, mpText, mpTextX + 1, mpTextY + 1, TEXT_SHADOW, false);
-        FontUtil.draw(g, font, mpText, mpTextX, mpTextY, TEXT_COLOR, false);
+        drawSplitVerticalBox(g, font, baseX, baseY, hpRatio, mpRatio, stats.currentHp(), stats.currentMp());
     }
 
-    private static void drawStatusBar(GuiGraphics g, int x, int y, int w, int h, float ratio, int fillTop, int fillBot) {
-        g.fill(x - 1, y - 1, x + w + 1, y + h + 1, BAR_BORDER);
-        g.fill(x, y, x + w, y + h, BAR_BG);
+    private static void drawSplitVerticalBox(GuiGraphics g, Font font, int x, int y, float hpRatio, float mpRatio, int hp, int mp) {
+        int halfW = BOX_W / 2;
+        int leftX = x;
+        int rightX = x + halfW;
 
-        int fillW = (int) (w * ratio);
-        if (fillW <= 0) return;
+        g.fill(x - 1, y - 1, x + BOX_W + 1, y + BOX_H + 1, BAR_BORDER);
+        g.fill(x, y, x + BOX_W, y + BOX_H, BAR_BG);
+        g.fill(rightX - 1, y, rightX, y + BOX_H, BAR_BORDER);
 
-        g.fillGradient(x, y, x + fillW, y + h, fillTop, fillBot);
-        g.fill(x, y, x + fillW, y + 1, BAR_SHINE);
-        g.fill(x, y + h - 1, x + fillW, y + h, BAR_SHADOW);
+        drawVerticalFill(g, leftX, y, halfW - 1, BOX_H, hpRatio, hpRatio < 0.25f ? HP_LOW_TOP : HP_TOP, hpRatio < 0.25f ? HP_LOW_BOT : HP_BOT);
+        drawVerticalFill(g, rightX, y, BOX_W - halfW, BOX_H, mpRatio, MP_TOP, MP_BOT);
+
+        drawTinyText(g, font, "H", leftX + 2, y + 1, TEXT_COLOR);
+        drawTinyText(g, font, "M", rightX + 2, y + 1, TEXT_COLOR);
+
+        drawTinyText(g, font, NUMBER_FORMAT.format(hp), leftX + 2, y + BOX_H - 8, TEXT_COLOR);
+        drawTinyText(g, font, NUMBER_FORMAT.format(mp), rightX + 2, y + BOX_H - 8, TEXT_COLOR);
+    }
+
+    private static void drawVerticalFill(GuiGraphics g, int x, int y, int w, int h, float ratio, int fillTop, int fillBot) {
+        int fillH = Math.max(0, (int) (h * ratio));
+        if (fillH <= 0) return;
+        int fy = y + h - fillH;
+        g.fillGradient(x, fy, x + w, y + h, fillTop, fillBot);
+        g.fill(x, fy, x + w, fy + 1, BAR_SHINE);
+        g.fill(x, y + h - 1, x + w, y + h, BAR_SHADOW);
+    }
+
+    private static void drawTinyText(GuiGraphics g, Font font, String text, int x, int y, int color) {
+        float inv = 1.0f / TINY_TEXT_SCALE;
+        g.pose().pushPose();
+        g.pose().scale(TINY_TEXT_SCALE, TINY_TEXT_SCALE, 1.0f);
+        FontUtil.draw(g, font, text, Math.round((x + 1) * inv), Math.round((y + 1) * inv), TEXT_SHADOW, false);
+        FontUtil.draw(g, font, text, Math.round(x * inv), Math.round(y * inv), color, false);
+        g.pose().popPose();
     }
 }

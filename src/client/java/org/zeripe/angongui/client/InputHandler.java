@@ -12,6 +12,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class InputHandler {
     private static boolean wasStatKeyDown = false;
+    private static boolean wasModeToggleDown = false;
 
     private InputHandler() {}
 
@@ -35,6 +36,15 @@ public final class InputHandler {
             }
 
             long window = client.getWindow().getWindow();
+            boolean ctrlDown = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_CONTROL)
+                    || InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_CONTROL);
+            boolean graveDown = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_GRAVE_ACCENT);
+            boolean modeToggle = ctrlDown && graveDown;
+            if (modeToggle && !wasModeToggleDown) {
+                CombatModeState.toggle();
+            }
+            wasModeToggleDown = modeToggle;
+
             int statKeyCode = KeyCodeResolver.resolveOrDefault(cfg.statScreenKey, GLFW.GLFW_KEY_J);
             boolean keyDown = InputConstants.isKeyDown(window, statKeyCode);
 
@@ -46,6 +56,9 @@ public final class InputHandler {
                 }
             }
             wasStatKeyDown = keyDown;
+
+            CombatModeState.tick(client);
+            CombatSkillInputRouter.tick(client);
         });
     }
 }

@@ -21,6 +21,7 @@ public final class ServerConfig {
     public String _usage = "Change numbers, save the file, then restart server/world.";
 
     public int defaultHitCooldownTicks = 7;
+    public int equipmentSyncIntervalTicks = 20;
     public boolean useVanillaAttackSpeedForHitCooldown = true;
     public int minAttackSpeedCooldownTicks = 1;
     public int maxAttackSpeedCooldownTicks = 40;

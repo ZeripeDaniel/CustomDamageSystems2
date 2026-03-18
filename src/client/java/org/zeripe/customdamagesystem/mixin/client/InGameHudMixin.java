@@ -1,5 +1,6 @@
 package org.zeripe.customdamagesystem.mixin.client;
 
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.player.Player;
@@ -29,4 +30,20 @@ public class InGameHudMixin {
     private void customdamagesystem$hideAirBubbles(GuiGraphics guiGraphics, Player player, int i, int j, int k, CallbackInfo ci) {
         ci.cancel();
     }
+
+    @Inject(method = "renderHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
+    private void customdamagesystem$hideVanillaHotbarInCombat(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        ci.cancel();
+    }
+
+    @Inject(method = "renderExperienceBar", at = @At("HEAD"), cancellable = true)
+    private void customdamagesystem$hideVanillaXpBar(GuiGraphics guiGraphics, int x, CallbackInfo ci) {
+        ci.cancel();
+    }
+
+    @Inject(method = "renderExperienceLevel", at = @At("HEAD"), cancellable = true)
+    private void customdamagesystem$hideVanillaXpLevel(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        ci.cancel();
+    }
+
 }

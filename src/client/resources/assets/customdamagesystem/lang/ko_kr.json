@@ -20,5 +20,10 @@
   "ui.customdamagesystem.stat.luck": "행운",
   "ui.customdamagesystem.stat.active_buffs": "활성 버프",
   "ui.customdamagesystem.stat.time_min_sec": "%1$d분 %2$d초",
-  "ui.customdamagesystem.stat.time_sec": "%1$d초"
+  "ui.customdamagesystem.stat.time_sec": "%1$d초",
+  "ui.customdamagesystem.mode.life": "[생활 모드]",
+  "ui.customdamagesystem.mode.combat": "[전투 모드]",
+  "ui.customdamagesystem.mode.life_bracket": "[생활모드]",
+  "ui.customdamagesystem.mode.combat_bracket": "[전투모드]",
+  "ui.customdamagesystem.mode.skill_used": "스킬 트리거: %1$s"
 }

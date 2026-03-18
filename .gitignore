@@ -25,6 +25,8 @@ hs_err_pid*
 replay_pid*
 /build
 /run
+/.gradle/build
+/.gradle/loom-cache
 *.jar
 *.bak
 *.backup

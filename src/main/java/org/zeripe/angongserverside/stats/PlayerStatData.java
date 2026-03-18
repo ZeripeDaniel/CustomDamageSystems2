@@ -54,6 +54,9 @@ public class PlayerStatData {
     public transient int totalAgility = 0;
     public transient int totalIntelligence = 0;
     public transient int totalLuck = 0;
+    public transient double equipAttackSpeed = 0.0;
+    public transient boolean overrideMainhandVanillaAttributes = false;
+    public transient boolean overrideVanillaArmor = false;
 
     public transient int currentHp = 10;
     public transient int currentMp = 0;

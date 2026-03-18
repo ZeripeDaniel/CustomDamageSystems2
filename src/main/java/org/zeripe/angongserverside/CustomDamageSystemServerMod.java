@@ -16,6 +16,7 @@ import org.zeripe.angongserverside.combat.HitCooldownRegistry;
 import org.zeripe.angongserverside.combat.ServerDamageHandler;
 import org.zeripe.angongserverside.combat.StatCalculationEngine;
 import org.zeripe.angongserverside.combat.StatManager;
+import org.zeripe.angongserverside.config.EquipmentStatConfig;
 import org.zeripe.angongserverside.config.MonsterAttackGroupConfig;
 import org.zeripe.angongserverside.config.ServerConfig;
 import org.zeripe.angongserverside.config.StatFormulaConfig;
@@ -38,7 +39,10 @@ public class CustomDamageSystemServerMod implements ModInitializer {
     private ServerConfig serverConfig;
     private MonsterAttackGroupConfig monsterAttackGroupConfig;
     private StatFormulaConfig statFormulaConfig;
+    private EquipmentStatConfig equipmentStatConfig;
     private int tickCounter = 0;
+    private int equipmentSyncCounter = 0;
+    private int equipmentSyncIntervalTicks = 20;
 
     @Override
     public void onInitialize() {
@@ -65,6 +69,8 @@ public class CustomDamageSystemServerMod implements ModInitializer {
         serverConfig = ServerConfig.load(LOGGER);
         monsterAttackGroupConfig = MonsterAttackGroupConfig.load(FabricLoader.getInstance().getConfigDir(), LOGGER);
         statFormulaConfig = StatFormulaConfig.load(LOGGER);
+        equipmentStatConfig = EquipmentStatConfig.load(LOGGER);
+        equipmentSyncIntervalTicks = Math.max(1, serverConfig.equipmentSyncIntervalTicks);
 
         storage = new StatStorage(server, LOGGER);
         calcEngine = new StatCalculationEngine(
@@ -75,7 +81,7 @@ public class CustomDamageSystemServerMod implements ModInitializer {
         );
         buffSystem = new BuffSystem(LOGGER);
         healthManager = new CustomHealthManager(LOGGER);
-        statManager = new StatManager(storage, calcEngine, buffSystem, healthManager, LOGGER);
+        statManager = new StatManager(storage, calcEngine, buffSystem, equipmentStatConfig, healthManager, LOGGER);
         dmgSender = new DamageNumberSender(server);
         damageHandler = new ServerDamageHandler(
                 healthManager,
@@ -107,6 +113,11 @@ public class CustomDamageSystemServerMod implements ModInitializer {
     }
 
     private void onServerTick(MinecraftServer server) {
+        equipmentSyncCounter++;
+        if (statManager != null && equipmentSyncCounter >= equipmentSyncIntervalTicks) {
+            equipmentSyncCounter = 0;
+            statManager.tickEquipmentSync(server);
+        }
         tickCounter++;
         if (tickCounter >= 20) {
             tickCounter = 0;

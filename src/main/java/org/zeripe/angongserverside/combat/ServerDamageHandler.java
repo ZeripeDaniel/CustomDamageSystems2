@@ -63,18 +63,24 @@ public class ServerDamageHandler {
         if (source.is(DamageTypes.GENERIC_KILL)) return true;
 
         ServerPlayer attacker = resolveAttacker(source);
-        int cooldownTicks = cooldownRegistry.resolve(source, attacker);
+        PlayerStatData attackerData = attacker != null ? statManager.getData(attacker.getUUID()) : null;
+        int cooldownTicks = cooldownRegistry.resolve(
+                source,
+                attacker,
+                attackerData != null ? attackerData.equipAttackSpeed : 0.0,
+                attackerData != null && attackerData.overrideMainhandVanillaAttributes
+        );
         String cooldownKey = resolveCooldownKey(source, attacker);
         if (source.getEntity() != null && isHitOnCooldown(entity, cooldownKey)) return false;
         if (entity instanceof ServerPlayer && source.is(DamageTypes.STARVE)) return false;
 
         if (entity instanceof ServerPlayer victim) {
-            return handlePlayerVictim(victim, source, amount, attacker, cooldownTicks, cooldownKey);
+            return handlePlayerVictim(victim, source, amount, attacker, attackerData, cooldownTicks, cooldownKey);
         }
-        return handleNonPlayerVictim(entity, source, amount, attacker, cooldownTicks, cooldownKey);
+        return handleNonPlayerVictim(entity, source, amount, attacker, attackerData, cooldownTicks, cooldownKey);
     }
 
-    private boolean handlePlayerVictim(ServerPlayer victim, DamageSource source, float amount, ServerPlayer attacker, int cooldownTicks, String cooldownKey) {
+    private boolean handlePlayerVictim(ServerPlayer victim, DamageSource source, float amount, ServerPlayer attacker, PlayerStatData attackerData, int cooldownTicks, String cooldownKey) {
         PlayerStatData victimData = statManager.getData(victim.getUUID());
         if (victimData == null) return true;
 
@@ -87,13 +93,12 @@ public class ServerDamageHandler {
 
         StatCalculationEngine.DamageResult result;
         if (attacker != null) {
-            PlayerStatData attackerData = statManager.getData(attacker.getUUID());
             if (attackerData == null) return false;
             int defenderDefense = victimData.defense;
-            if (includeVanillaArmorForPlayerDefense) {
+            if (includeVanillaArmorForPlayerDefense && !victimData.overrideVanillaArmor) {
                 defenderDefense += (int) Math.round(victim.getArmorValue() * vanillaArmorDefenseMultiplier);
             }
-            double vanillaWeaponBonus = resolveVanillaAttackDamageBonus(attacker);
+            double vanillaWeaponBonus = resolveVanillaAttackDamageBonus(attacker, attackerData);
             double attackChargeMultiplier = resolveMeleeAttackChargeMultiplier(source, attacker, amount);
             result = calcEngine.calculateDamage(attackerData, defenderDefense, false, vanillaWeaponBonus, attackChargeMultiplier);
         } else if (source.getEntity() != null) {
@@ -117,7 +122,7 @@ public class ServerDamageHandler {
         return false;
     }
 
-    private boolean handleNonPlayerVictim(LivingEntity victim, DamageSource source, float amount, ServerPlayer attacker, int cooldownTicks, String cooldownKey) {
+    private boolean handleNonPlayerVictim(LivingEntity victim, DamageSource source, float amount, ServerPlayer attacker, PlayerStatData attackerData, int cooldownTicks, String cooldownKey) {
         int damage;
         boolean crit = false;
         StatCalculationEngine.DamageType type = source.getEntity() != null
@@ -125,10 +130,9 @@ public class ServerDamageHandler {
                 : StatCalculationEngine.DamageType.TRUE;
 
         if (attacker != null) {
-            PlayerStatData attackerData = statManager.getData(attacker.getUUID());
             if (attackerData != null) {
                 int armor = Math.max(0, victim.getArmorValue());
-                double rawDamage = attackerData.attack + attackerData.bonusDamage + resolveVanillaAttackDamageBonus(attacker);
+                double rawDamage = attackerData.attack + attackerData.bonusDamage + resolveVanillaAttackDamageBonus(attacker, attackerData);
                 rawDamage *= resolveMeleeAttackChargeMultiplier(source, attacker, amount);
                 double effectiveArmor = Math.max(0.0, armor - attackerData.armorPenetration);
                 double defenseReduction = effectiveArmor / (effectiveArmor + 500.0);
@@ -247,7 +251,10 @@ public class ServerDamageHandler {
         return DamageChannel.ENVIRONMENT;
     }
 
-    private double resolveVanillaAttackDamageBonus(ServerPlayer attacker) {
+    private double resolveVanillaAttackDamageBonus(ServerPlayer attacker, PlayerStatData attackerData) {
+        if (attackerData != null && attackerData.overrideMainhandVanillaAttributes) {
+            return 0.0;
+        }
         AttributeInstance attackDamage = attacker.getAttribute(Attributes.ATTACK_DAMAGE);
         if (attackDamage == null) return 0.0;
         // Robustly resolve weapon/NBT bonus:
