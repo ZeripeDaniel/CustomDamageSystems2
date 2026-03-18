@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "customdamagesystem",
+  "version": "${version}",
+  "name": "CustomDamageSystem",
+  "description": "Unified custom damage/stat system for dedicated and singleplayer worlds",
+  "authors": [
+    "zeripe"
+  ],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "org.zeripe.angongui.client.CustomDamageSystemClient"
+    ],
+    "main": [
+      "org.zeripe.angongserverside.CustomDamageSystemServerMod"
+    ]
+  },
+  "mixins": [
+    "customdamagesystem.mixins.json",
+    {
+      "config": "customdamagesystem.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
