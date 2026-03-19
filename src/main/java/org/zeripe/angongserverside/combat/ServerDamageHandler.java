@@ -104,6 +104,8 @@ public class ServerDamageHandler {
             return false;
         }
 
+        boolean isProjectileHit = source.getDirectEntity() instanceof Projectile;
+
         StatCalculationEngine.DamageResult result;
         if (attacker != null) {
             if (attackerData == null) return false;
@@ -111,9 +113,17 @@ public class ServerDamageHandler {
             if (includeVanillaArmorForPlayerDefense && !victimData.overrideVanillaArmor) {
                 defenderDefense += (int) Math.round(victim.getArmorValue() * vanillaArmorDefenseMultiplier);
             }
-            double vanillaWeaponBonus = resolveVanillaAttackDamageBonus(attacker, attackerData);
-            double attackChargeMultiplier = resolveMeleeAttackChargeMultiplier(source, attacker, amount);
-            result = calcEngine.calculateDamage(attackerData, defenderDefense, false, vanillaWeaponBonus, attackChargeMultiplier);
+            double extraFlat;
+            double chargeMultiplier;
+            if (isProjectileHit) {
+                // 원거리: 바닐라 투사체 데미지를 보너스로 추가
+                extraFlat = amount;
+                chargeMultiplier = 1.0;
+            } else {
+                extraFlat = resolveVanillaAttackDamageBonus(attacker, attackerData);
+                chargeMultiplier = resolveMeleeAttackChargeMultiplier(source, attacker, amount);
+            }
+            result = calcEngine.calculateDamage(attackerData, defenderDefense, false, extraFlat, chargeMultiplier);
         } else if (source.getEntity() != null) {
             int envDmg = calcEngine.convertEnvironmentalDamage(amount, victimData);
             result = new StatCalculationEngine.DamageResult(envDmg, false, StatCalculationEngine.DamageType.PHYSICAL, 0);
@@ -142,11 +152,19 @@ public class ServerDamageHandler {
                 ? StatCalculationEngine.DamageType.PHYSICAL
                 : StatCalculationEngine.DamageType.TRUE;
 
+        boolean isProjectileHit = source.getDirectEntity() instanceof Projectile;
+
         if (attacker != null) {
             if (attackerData != null) {
                 int armor = Math.max(0, victim.getArmorValue());
-                double rawDamage = attackerData.attack + attackerData.bonusDamage + resolveVanillaAttackDamageBonus(attacker, attackerData);
-                rawDamage *= resolveMeleeAttackChargeMultiplier(source, attacker, amount);
+                double rawDamage = attackerData.attack + attackerData.bonusDamage;
+                if (isProjectileHit) {
+                    // 원거리: 바닐라 투사체 데미지를 보너스로 추가
+                    rawDamage += amount;
+                } else {
+                    rawDamage += resolveVanillaAttackDamageBonus(attacker, attackerData);
+                    rawDamage *= resolveMeleeAttackChargeMultiplier(source, attacker, amount);
+                }
                 double effectiveArmor = Math.max(0.0, armor - attackerData.armorPenetration);
                 double defenseReduction = effectiveArmor / (effectiveArmor + 500.0);
                 double mitigated = rawDamage * (1.0 - defenseReduction);

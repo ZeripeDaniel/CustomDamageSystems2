@@ -84,7 +84,7 @@ public final class LocalStatManager {
     }
 
     private static void push() {
-        ClientState.get().updateHpMp(currentHp, maxHp, currentMp, maxMp);
+        ClientState.get().updateHpMp(currentHp, maxHp, 0, currentMp, maxMp);
     }
 
     private static String resolveWorldKey(Minecraft mc) {

@@ -23,11 +23,11 @@ public final class ClientState {
         this.playerStats = s;
     }
 
-    public void updateHpMp(int currentHp, int maxHp, int currentMp, int maxMp) {
+    public void updateHpMp(int currentHp, int maxHp, int absorptionHp, int currentMp, int maxMp) {
         PlayerStats old = this.playerStats;
         this.playerStats = new PlayerStats(
                 old.name(), old.itemLevel(), old.combatPower(),
-                currentHp, maxHp, currentMp, maxMp,
+                currentHp, maxHp, absorptionHp, currentMp, maxMp,
                 old.attack(), old.magicAttack(), old.defense(),
                 old.critRate(), old.critDamage(), old.armorPenetration(),
                 old.bonusDamage(), old.elementalMultiplier(), old.lifeSteal(),
@@ -59,7 +59,7 @@ public final class ClientState {
             String name,
             double itemLevel,
             int combatPower,
-            int currentHp, int maxHp,
+            int currentHp, int maxHp, int absorptionHp,
             int currentMp, int maxMp,
             int attack,
             int magicAttack,
@@ -88,7 +88,7 @@ public final class ClientState {
         public static PlayerStats empty() {
             return new PlayerStats(
                     "", 0, 0,
-                    10, 10, 0, 0,
+                    10, 10, 0, 0, 0,
                     0, 0, 0,
                     0.0, 150.0, 0.0, 0, 100.0, 0.0, 100.0, 100.0, 100.0, 100.0, 0.0, 0.0,
                     0, 0, 0, 0,

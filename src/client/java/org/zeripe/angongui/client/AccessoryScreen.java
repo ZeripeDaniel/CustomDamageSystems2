@@ -1,15 +1,25 @@
 package org.zeripe.angongui.client;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.jetbrains.annotations.Nullable;
+import org.zeripe.angongcommon.network.StatPayload;
+import org.zeripe.angongui.client.network.NetworkHandler;
+import org.zeripe.customdamagesystem.item.AccessoryInventory;
 import org.zeripe.customdamagesystem.item.AccessoryMenu;
 
 public class AccessoryScreen extends AbstractContainerScreen<AccessoryMenu> {
@@ -149,6 +159,73 @@ public class AccessoryScreen extends AbstractContainerScreen<AccessoryMenu> {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         this.renderTooltip(g, mouseX, mouseY);
+    }
+
+    /**
+     * 플러그인 서버(clientOnly 모드)에서는 서버로 컨테이너 클릭 패킷을 보내지 않고
+     * 클라이언트에서만 슬롯 조작을 처리한다.
+     */
+    @Override
+    protected void slotClicked(@Nullable Slot slot, int slotId, int button, ClickType clickType) {
+        if (this.menu.isClientOnly()) {
+            // 서버 패킷 없이 로컬에서만 클릭 처리
+            this.menu.clicked(slotId, button, clickType, this.minecraft.player);
+            return;
+        }
+        super.slotClicked(slot, slotId, button, clickType);
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+        // 플러그인 서버 (서버에 AccessoryMenu가 없는 경우) → 패킷으로 슬롯 데이터 전송
+        if (this.menu.isClientOnly()) {
+            // containerMenu를 원래 inventoryMenu로 복원
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.containerMenu = minecraft.player.inventoryMenu;
+            }
+            if (ClientPlayNetworking.canSend(StatPayload.TYPE)) {
+                sendAccessoryUpdateToServer();
+            }
+        }
+    }
+
+    private void sendAccessoryUpdateToServer() {
+        JsonObject packet = new JsonObject();
+        packet.addProperty("action", "accessory_update");
+        JsonArray slots = new JsonArray();
+        for (int i = 0; i < AccessoryInventory.SIZE; i++) {
+            ItemStack stack = this.menu.getSlot(i).getItem();
+            if (stack.isEmpty()) {
+                slots.add((String) null);
+            } else {
+                // registryId + itemId + cmd 전송 (서버가 full item 복원 가능하도록)
+                JsonObject slotData = new JsonObject();
+                slotData.addProperty("itemId", BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+                // CustomModelData
+                var cmdData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA);
+                if (cmdData != null && !cmdData.floats().isEmpty()) {
+                    slotData.addProperty("cmd", cmdData.floats().getFirst().intValue());
+                }
+                // registryId는 EquipmentStatConfig에서 찾기
+                String regId = findRegistryId(stack);
+                if (regId != null) slotData.addProperty("registryId", regId);
+                slots.add(slotData);
+            }
+        }
+        packet.add("slots", slots);
+        ClientPlayNetworking.send(StatPayload.of(packet.toString()));
+    }
+
+    /** 아이템의 registryId를 찾기 — accessory_registry_sync 캐시 사용 */
+    private String findRegistryId(ItemStack stack) {
+        String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+        int cmd = 0;
+        var cmdData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA);
+        if (cmdData != null && !cmdData.floats().isEmpty()) {
+            cmd = cmdData.floats().getFirst().intValue();
+        }
+        return ClientAccessoryRegistryCache.findRegistryId(itemId, cmd);
     }
 
     private void renderStatPanel(GuiGraphics g) {

@@ -32,6 +32,11 @@ public final class ServerConfig {
     public boolean includeVanillaArmorForPlayerDefense = true;
     public double vanillaArmorDefenseMultiplier = 10.0;
 
+    public double damageNumberRangeXZ = 25.0;
+    public double damageNumberRangeY = 10.0;
+
+    public boolean economyEnabled = true;
+
     public static ServerConfig load(Logger logger) {
         Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
         if (Files.exists(path)) {

@@ -1,6 +1,7 @@
 package org.zeripe.angongserverside;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -9,6 +10,7 @@ import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeripe.angongserverside.api.CustomDamageApi;
+import org.zeripe.angongserverside.command.ZcdsCommand;
 import org.zeripe.angongserverside.combat.BuffSystem;
 import org.zeripe.angongserverside.combat.CustomHealthManager;
 import org.zeripe.angongserverside.combat.DamageNumberSender;
@@ -38,6 +40,8 @@ public class CustomDamageSystemServerMod implements ModInitializer {
     public static final String MOD_ID = "customdamagesystem";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+    private static CustomDamageSystemServerMod INSTANCE;
+
     private final ServerNetworkHandler networkHandler = new ServerNetworkHandler(LOGGER);
 
     private StatStorage storage;
@@ -56,11 +60,33 @@ public class CustomDamageSystemServerMod implements ModInitializer {
     private int equipmentSyncCounter = 0;
     private int equipmentSyncIntervalTicks = 20;
 
+    public static CustomHealthManager getHealthManager() {
+        return INSTANCE != null ? INSTANCE.healthManager : null;
+    }
+
+    public static StatManager getStatManager() {
+        return INSTANCE != null ? INSTANCE.statManager : null;
+    }
+
+    public static EquipmentStatConfig getEquipmentStatConfig() {
+        return INSTANCE != null ? INSTANCE.equipmentStatConfig : null;
+    }
+
     @Override
     public void onInitialize() {
+        INSTANCE = this;
         LOGGER.info("[CustomDamageSystem] 초기화 시작");
         networkHandler.registerPayloads();
         networkHandler.registerReceivers();
+
+        // Config 미리 로드 (커맨드에서 참조하기 위해)
+        equipmentStatConfig = EquipmentStatConfig.load(LOGGER);
+
+        // /zcds 커맨드 등록
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            ZcdsCommand zcds = new ZcdsCommand(equipmentStatConfig, LOGGER);
+            zcds.register(dispatcher);
+        });
 
         ServerLifecycleEvents.SERVER_STARTED.register(this::onServerStarted);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::onServerStopping);
@@ -91,7 +117,7 @@ public class CustomDamageSystemServerMod implements ModInitializer {
         serverConfig = ServerConfig.load(LOGGER);
         monsterAttackGroupConfig = MonsterAttackGroupConfig.load(FabricLoader.getInstance().getConfigDir(), LOGGER);
         statFormulaConfig = StatFormulaConfig.load(LOGGER);
-        equipmentStatConfig = EquipmentStatConfig.load(LOGGER);
+        // equipmentStatConfig는 onInitialize에서 이미 로드됨 (커맨드에서 참조)
         equipmentSyncIntervalTicks = Math.max(1, serverConfig.equipmentSyncIntervalTicks);
 
         storage = new StatStorage(server, LOGGER);
@@ -105,6 +131,7 @@ public class CustomDamageSystemServerMod implements ModInitializer {
         healthManager = new CustomHealthManager(LOGGER);
         statManager = new StatManager(storage, calcEngine, buffSystem, equipmentStatConfig, healthManager, LOGGER);
         dmgSender = new DamageNumberSender(server);
+        dmgSender.applyConfig(serverConfig);
         damageHandler = new ServerDamageHandler(
                 healthManager,
                 calcEngine,
@@ -150,15 +177,37 @@ public class CustomDamageSystemServerMod implements ModInitializer {
     private void registerWeaponsFromConfig() {
         if (equipmentStatConfig == null) return;
         for (var entry : equipmentStatConfig.items) {
-            if (entry == null || entry.itemId == null || entry.weapons != 1) continue;
+            if (entry == null || entry.itemId == null) continue;
+
+            // slots 기반으로 AccessoryType 결정
+            AccessoryType accType = getAccessoryTypeFromSlots(entry);
+
             BuiltInRegistries.ITEM.get(ResourceLocation.parse(entry.itemId)).ifPresent(ref -> {
-                HitCooldownRegistry.get().registerWeapon(ref.value());
-                if (!AccessoryRegistry.isAccessory(ref.value())) {
+                // 무기면 히트 쿨다운 등록
+                if (entry.weapons == 1) {
+                    HitCooldownRegistry.get().registerWeapon(ref.value());
+                }
+                // 악세서리/무기 타입이면 AccessoryRegistry에 등록
+                if (accType != null && !AccessoryRegistry.isAccessory(ref.value())) {
                     AccessoryRegistry.register(ref.value(),
-                            new AccessoryDefinition(AccessoryType.WEAPON, entry.strength, entry.agility, entry.intelligence, entry.luck));
+                            new AccessoryDefinition(accType, entry.strength, entry.agility, entry.intelligence, entry.luck));
                 }
             });
         }
+    }
+
+    private AccessoryType getAccessoryTypeFromSlots(EquipmentStatConfig.ItemEntry entry) {
+        if (entry.slots == null || entry.slots.isEmpty()) {
+            return entry.weapons == 1 ? AccessoryType.WEAPON : null;
+        }
+        String slot = entry.slots.getFirst().toLowerCase();
+        return switch (slot) {
+            case "ring" -> AccessoryType.RING;
+            case "necklace" -> AccessoryType.NECKLACE;
+            case "earring" -> AccessoryType.EARRING;
+            case "mainhand" -> AccessoryType.WEAPON;
+            default -> null; // head, chest, legs, feet → 바닐라 장비 슬롯
+        };
     }
 
     private void onServerTick(MinecraftServer server) {

@@ -92,6 +92,10 @@ public class ServerNetworkHandler {
                             }
                         }
                     }
+                    if ("get_economy".equals(action) && statManager != null) {
+                        var data = statManager.getData(player.getUUID());
+                        if (data != null) statManager.sendEconomy(player, data);
+                    }
                     if ("skin_cycle".equals(action) && skinManager != null) {
                         String newSkin = skinManager.cycleNext(player.getUUID());
                         String changeJson = DamageSkinManager.buildSkinChangePacket(player.getUUID(), newSkin).toString();

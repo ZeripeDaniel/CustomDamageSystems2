@@ -5,8 +5,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.MenuScreens;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.component.CustomData;
 import org.zeripe.angongui.client.network.NetworkHandler;
 import org.zeripe.customdamagesystem.ModMenuTypes;
 
@@ -32,9 +35,18 @@ public class CustomDamageSystemClient implements ClientModInitializer {
         // 인게임 Ctrl+K 로 스킨 전환
         ClientTickEvents.END_CLIENT_TICK.register(LocalStatManager::tick);
         ItemTooltipCallback.EVENT.register((stack, ctx, type, lines) -> {
-            String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
-            if (ClientItemLevelCache.has(itemId)) {
-                double level = ClientItemLevelCache.get(itemId);
+            // CUSTOM_DATA → PublicBukkitValues → customdamagesystem:registry_id 로 등록된 아이템만 표시
+            CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+            if (customData == null) return;
+            CompoundTag tag = customData.copyTag();
+            if (!tag.contains("PublicBukkitValues", Tag.TAG_COMPOUND)) return;
+            CompoundTag pbv = tag.getCompound("PublicBukkitValues");
+            if (!pbv.contains("customdamagesystem:registry_id")) return;
+            String registryId = pbv.getString("customdamagesystem:registry_id");
+            if (registryId.isEmpty()) return;
+
+            if (ClientItemLevelCache.has(registryId)) {
+                double level = ClientItemLevelCache.get(registryId);
                 String formatted = level == Math.floor(level)
                         ? String.valueOf((int) level)
                         : String.valueOf(level);

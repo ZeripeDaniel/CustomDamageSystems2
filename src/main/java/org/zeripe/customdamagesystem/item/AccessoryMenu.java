@@ -9,6 +9,7 @@ import org.zeripe.customdamagesystem.ModMenuTypes;
 
 public class AccessoryMenu extends AbstractContainerMenu {
     private final AccessoryInventory accessories;
+    private boolean clientOnly = false;
 
     private static final int ACC_END = 6;
     private static final int INV_START = 6;
@@ -96,6 +97,15 @@ public class AccessoryMenu extends AbstractContainerMenu {
         return false;
     }
 
+    /** 클라이언트 전용 모드 설정 (플러그인 서버에서 사용) */
+    public void setClientOnly(boolean clientOnly) {
+        this.clientOnly = clientOnly;
+    }
+
+    public boolean isClientOnly() {
+        return clientOnly;
+    }
+
     @Override
     public boolean stillValid(Player player) {
         return true;
@@ -104,7 +114,7 @@ public class AccessoryMenu extends AbstractContainerMenu {
     @Override
     public void removed(Player player) {
         super.removed(player);
-        if (!player.level().isClientSide()) {
+        if (!clientOnly && !player.level().isClientSide()) {
             AccessoryDataManager.save(player.getUUID());
         }
     }

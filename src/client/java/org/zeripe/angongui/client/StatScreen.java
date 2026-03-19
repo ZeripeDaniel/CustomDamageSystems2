@@ -194,6 +194,7 @@ public class StatScreen extends Screen {
         int txtX = infoX + 42;
         draw(g, tr("ui.customdamagesystem.stat.hp"), txtX, ilBoxY + 2, C_HP_RED, false);
         String hpStr = NUM_FMT.format(s.currentHp()) + " / " + NUM_FMT.format(s.maxHp());
+        if (s.absorptionHp() > 0) hpStr += " §e(+" + s.absorptionHp() + ")";
         draw(g, hpStr, px + fullW - PAD - textWidth(hpStr), ilBoxY + 2, C_VALUE_DIM, false);
 
         draw(g, tr("ui.customdamagesystem.stat.mp"), txtX, ilBoxY + 14, C_MP_BLUE, false);

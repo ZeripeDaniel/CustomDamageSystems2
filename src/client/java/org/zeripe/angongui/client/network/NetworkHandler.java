@@ -6,13 +6,20 @@ import com.google.gson.JsonParser;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import org.zeripe.angongcommon.network.StatPayload;
+import org.zeripe.angongui.client.AccessoryScreen;
+import org.zeripe.customdamagesystem.item.AccessoryInventory;
+import org.zeripe.customdamagesystem.item.AccessoryMenu;
 import org.zeripe.angongui.client.ClientItemLevelCache;
 import org.zeripe.angongui.client.ClientState;
 import org.zeripe.angongui.client.CombatModeState;
 import org.zeripe.angongui.client.DamageNumberRenderer;
+import org.zeripe.angongui.client.ClientAccessoryRegistryCache;
 import org.zeripe.angongui.client.DamageSkin;
 import org.zeripe.angongui.client.LocalStatManager;
 import org.zeripe.customdamagesystem.item.AccessoryDefinition;
@@ -102,6 +109,9 @@ public final class NetworkHandler {
                 case "item_levels" -> parseItemLevels(obj);
                 case "skin_list" -> parseSkinList(obj);
                 case "skin_change" -> parseSkinChange(obj);
+                case "economy_update" -> parseEconomyUpdate(obj);
+                case "accessory_data" -> parseAccessoryData(obj);
+                case "accessory_registry_sync" -> parseAccessoryRegistrySync(obj);
             }
         } catch (Exception ignored) {
         }
@@ -119,6 +129,7 @@ public final class NetworkHandler {
                 s.has("combatPower") ? s.get("combatPower").getAsInt() : 0,
                 s.has("currentHp") ? s.get("currentHp").getAsInt() : 10,
                 s.has("maxHp") ? s.get("maxHp").getAsInt() : 10,
+                s.has("absorptionHp") ? s.get("absorptionHp").getAsInt() : 0,
                 s.has("currentMp") ? s.get("currentMp").getAsInt() : 0,
                 s.has("maxMp") ? s.get("maxMp").getAsInt() : 0,
                 s.has("attack") ? s.get("attack").getAsInt() : 0,
@@ -151,6 +162,7 @@ public final class NetworkHandler {
         ClientState.get().updateHpMp(
                 obj.has("currentHp") ? obj.get("currentHp").getAsInt() : 0,
                 obj.has("maxHp") ? obj.get("maxHp").getAsInt() : 10,
+                obj.has("absorptionHp") ? obj.get("absorptionHp").getAsInt() : 0,
                 obj.has("currentMp") ? obj.get("currentMp").getAsInt() : 0,
                 obj.has("maxMp") ? obj.get("maxMp").getAsInt() : 0
         );
@@ -230,6 +242,177 @@ public final class NetworkHandler {
             ));
         }
         ClientState.get().setActiveBuffs(buffs);
+    }
+
+    private static void parseEconomyUpdate(JsonObject obj) {
+        long gold = obj.has("gold") ? obj.get("gold").getAsLong() : 0;
+        // AngongGui 종속성 없이 리플렉션으로 LocalEconomyManager.onServerGoldReceived 호출
+        try {
+            Class<?> cls = Class.forName("org.zeripe.angonggui.client.LocalEconomyManager");
+            cls.getMethod("onServerGoldReceived", long.class).invoke(null, gold);
+        } catch (Exception ignored) {
+            // AngongGui 미설치 시 무시
+        }
+    }
+
+    /** 플러그인 서버에서 받은 악세서리 데이터로 AccessoryScreen을 로컬에서 열기 */
+    private static void parseAccessoryData(JsonObject obj) {
+        JsonArray slots = obj.getAsJsonArray("slots");
+        if (slots == null) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        AccessoryInventory accInv = new AccessoryInventory();
+        for (int i = 0; i < Math.min(slots.size(), AccessoryInventory.SIZE); i++) {
+            var el = slots.get(i);
+            if (el.isJsonNull()) continue;
+
+            final int slot = i;
+
+            // 새 포맷: JsonObject (itemId + registryId + cmd + displayName(JSON) + lore(JSON))
+            if (el.isJsonObject()) {
+                JsonObject slotData = el.getAsJsonObject();
+                String itemId = slotData.has("itemId") ? slotData.get("itemId").getAsString() : null;
+                int cmd = slotData.has("cmd") ? slotData.get("cmd").getAsInt() : 0;
+                String displayName = slotData.has("displayName") ? slotData.get("displayName").getAsString() : null;
+                JsonArray loreArr = slotData.has("lore") ? slotData.getAsJsonArray("lore") : null;
+
+                if (itemId != null) {
+                    ResourceLocation loc = ResourceLocation.tryParse(itemId);
+                    if (loc != null) {
+                        BuiltInRegistries.ITEM.get(loc).ifPresent(ref -> {
+                            ItemStack stack = new ItemStack(ref.value());
+                            // CustomModelData 복원 (리소스팩 텍스처)
+                            if (cmd != 0) {
+                                stack.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
+                                        new net.minecraft.world.item.component.CustomModelData(
+                                                List.of((float) cmd), List.of(), List.of(), List.of()));
+                            }
+                            // DisplayName 복원 — JSON Component 파싱 (Adventure 호환)
+                            if (displayName != null) {
+                                Component nameComp = parseComponentJson(displayName);
+                                stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, nameComp);
+                            }
+                            // Lore 복원 — JSON Component 파싱 (§ 코드 스타일 보존)
+                            if (loreArr != null && !loreArr.isEmpty()) {
+                                List<Component> loreLines = new ArrayList<>();
+                                for (var loreLine : loreArr) {
+                                    loreLines.add(parseComponentJson(loreLine.getAsString()));
+                                }
+                                stack.set(net.minecraft.core.component.DataComponents.LORE,
+                                        new net.minecraft.world.item.component.ItemLore(loreLines));
+                            }
+                            accInv.setItem(slot, stack);
+                        });
+                    }
+                }
+            }
+            // 구 포맷: String (material ID만) — 하위 호환
+            else if (el.isJsonPrimitive()) {
+                String itemId = el.getAsString();
+                ResourceLocation loc = ResourceLocation.tryParse(itemId);
+                if (loc != null) {
+                    BuiltInRegistries.ITEM.get(loc).ifPresent(ref ->
+                            accInv.setItem(slot, new ItemStack(ref.value())));
+                }
+            }
+        }
+
+        // 로컬에서 AccessoryMenu + AccessoryScreen 열기 (clientOnly 모드)
+        int syncId = mc.player.containerMenu.containerId + 1;
+        AccessoryMenu menu = new AccessoryMenu(syncId, mc.player.getInventory(), accInv);
+        menu.setClientOnly(true);  // 서버 패킷 전송 없이 클라이언트에서만 슬롯 조작
+        // containerMenu를 교체해야 슬롯 클릭(getCarried 등)이 정상 동작
+        mc.player.containerMenu = menu;
+        mc.setScreen(new AccessoryScreen(menu, mc.player.getInventory(),
+                Component.translatable("ui.customdamagesystem.acc.title")));
+    }
+
+    /** 플러그인 서버에서 받은 악세서리 레지스트리를 클라이언트 AccessoryRegistry에 등록 */
+    private static void parseAccessoryRegistrySync(JsonObject obj) {
+        JsonArray entries = obj.getAsJsonArray("entries");
+        if (entries == null) return;
+
+        for (var el : entries) {
+            JsonObject e = el.getAsJsonObject();
+            String itemId = e.get("item").getAsString();
+            String typeStr = e.get("type").getAsString();
+            String registryId = e.has("registryId") ? e.get("registryId").getAsString() : null;
+            int cmd = e.has("cmd") ? e.get("cmd").getAsInt() : 0;
+            int str = e.has("str") ? e.get("str").getAsInt() : 0;
+            int agi = e.has("agi") ? e.get("agi").getAsInt() : 0;
+            int intel = e.has("int") ? e.get("int").getAsInt() : 0;
+            int luk = e.has("luk") ? e.get("luk").getAsInt() : 0;
+
+            AccessoryType accType;
+            try {
+                accType = AccessoryType.valueOf(typeStr);
+            } catch (IllegalArgumentException ex) {
+                continue;
+            }
+
+            BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)).ifPresent(ref ->
+                    AccessoryRegistry.register(ref.value(),
+                            new AccessoryDefinition(accType, str, agi, intel, luk)));
+
+            // registryId 캐시 저장 (클라이언트 → 서버 전송 시 사용)
+            if (registryId != null) {
+                ClientAccessoryRegistryCache.put(itemId, cmd, registryId);
+            }
+        }
+    }
+
+    /**
+     * JSON 문자열을 Minecraft Component로 파싱.
+     * Adventure GsonComponentSerializer 형식(서버)과 호환.
+     * 파싱 실패 시 legacy § 코드 수동 파싱으로 fallback.
+     */
+    private static Component parseComponentJson(String json) {
+        if (json == null || json.isEmpty()) return Component.empty();
+        // JSON Component 파싱 시도
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null) {
+                Component comp = Component.Serializer.fromJson(json, mc.level.registryAccess());
+                if (comp != null) return comp;
+            }
+        } catch (Exception ignored) {}
+        // fallback: § 코드를 Component 스타일로 변환
+        return parseLegacyFormatting(json);
+    }
+
+    /** § 코드가 포함된 문자열을 올바른 Component 스타일 트리로 변환 */
+    private static Component parseLegacyFormatting(String text) {
+        net.minecraft.network.chat.MutableComponent result = Component.empty();
+        net.minecraft.ChatFormatting[] formats = net.minecraft.ChatFormatting.values();
+        net.minecraft.network.chat.Style current = net.minecraft.network.chat.Style.EMPTY;
+        StringBuilder buf = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\u00A7' && i + 1 < text.length()) {
+                if (buf.length() > 0) {
+                    result.append(Component.literal(buf.toString()).withStyle(current));
+                    buf.setLength(0);
+                }
+                net.minecraft.ChatFormatting fmt = net.minecraft.ChatFormatting.getByCode(text.charAt(i + 1));
+                if (fmt != null) {
+                    if (fmt == net.minecraft.ChatFormatting.RESET) {
+                        current = net.minecraft.network.chat.Style.EMPTY;
+                    } else if (fmt.isColor()) {
+                        current = net.minecraft.network.chat.Style.EMPTY.withColor(fmt);
+                    } else {
+                        current = current.applyFormat(fmt);
+                    }
+                }
+                i++;
+            } else {
+                buf.append(text.charAt(i));
+            }
+        }
+        if (buf.length() > 0) {
+            result.append(Component.literal(buf.toString()).withStyle(current));
+        }
+        return result;
     }
 
     private static void parseItemLevels(JsonObject obj) {

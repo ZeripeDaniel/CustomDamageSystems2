@@ -31,6 +31,8 @@ public class PlayerStatData {
     public double equipCooldownReduction = 0.0;
     public double equipClearGoldBonus = 0.0;
 
+    public long gold = 0;
+
     public transient int maxHp = 10;
     public transient int maxMp = 0;
     public transient int attack = 0;

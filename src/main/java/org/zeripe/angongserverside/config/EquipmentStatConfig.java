@@ -83,8 +83,47 @@ public final class EquipmentStatConfig {
         }
     }
 
+    /** registryId로 ItemEntry 검색 */
+    public ItemEntry findByRegistryId(String registryId) {
+        if (registryId == null || items == null) return null;
+        for (ItemEntry entry : items) {
+            if (entry != null && registryId.equals(entry.registryId)) return entry;
+        }
+        return null;
+    }
+
+    /** 항목 추가 */
+    public void addEntry(ItemEntry entry) {
+        if (items == null) items = new ArrayList<>();
+        items.add(entry);
+    }
+
+    /** registryId로 항목 제거 */
+    public boolean removeByRegistryId(String registryId) {
+        if (registryId == null || items == null) return false;
+        return items.removeIf(e -> e != null && registryId.equals(e.registryId));
+    }
+
+    /** 설정 파일에 저장 */
+    public void save() throws IOException {
+        Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+        Files.createDirectories(path.getParent());
+        Files.writeString(path, GSON.toJson(this));
+    }
+
     public static final class ItemEntry {
         public String itemId;
+        /** 커맨드 등록용 고유 ID (예: wooden_ring). null이면 itemId 기반 매칭 */
+        public String registryId;
+        /** Oraxen 아이템 ID (플러그인 서버용). null이면 체크 안 함 */
+        public String oraxenId;
+        /** CustomModelData 값. 0이면 체크 안 함 */
+        public int customModelData = 0;
+        /** 아이템 표시 이름 */
+        public String displayName;
+        /** 원본 아이템 전체 데이터 (SNBT). null이면 기본 아이템 생성 */
+        public String itemData;
+
         public List<String> slots = new ArrayList<>();
         public double itemLevel = 0.0;
         public int itemLevelSlot = 0;

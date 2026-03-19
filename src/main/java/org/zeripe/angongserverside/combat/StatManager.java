@@ -70,6 +70,7 @@ public class StatManager {
 
         applyMoveSpeed(player, data);
         sendFullStat(player, data);
+        sendEconomy(player, data);
         sendItemLevels(player);
         logger.info("[StatManager] {} 스탯 로드 완료", name);
     }
@@ -153,6 +154,49 @@ public class StatManager {
         sendFullStat(player, data);
     }
 
+    // ── Economy ───────────────────────────────────────────────
+
+    public long getGold(UUID uuid) {
+        PlayerStatData data = playerData.get(uuid);
+        return data != null ? data.gold : 0;
+    }
+
+    public void setGold(ServerPlayer player, long amount) {
+        PlayerStatData data = playerData.get(player.getUUID());
+        if (data == null) return;
+        data.gold = Math.max(0, amount);
+        storage.save(data);
+        sendEconomy(player, data);
+    }
+
+    public boolean addGold(ServerPlayer player, long amount) {
+        PlayerStatData data = playerData.get(player.getUUID());
+        if (data == null) return false;
+        data.gold = Math.max(0, data.gold + amount);
+        storage.save(data);
+        sendEconomy(player, data);
+        return true;
+    }
+
+    public boolean removeGold(ServerPlayer player, long amount) {
+        PlayerStatData data = playerData.get(player.getUUID());
+        if (data == null || data.gold < amount) return false;
+        data.gold -= amount;
+        storage.save(data);
+        sendEconomy(player, data);
+        return true;
+    }
+
+    public void sendEconomy(ServerPlayer player, PlayerStatData data) {
+        if (data == null) return;
+        JsonObject resp = new JsonObject();
+        resp.addProperty("action", "economy_update");
+        resp.addProperty("gold", data.gold);
+        ServerNetworkHandler.sendStat(player, resp.toString());
+    }
+
+    // ── Stat sync ───────────────────────────────────────────
+
     public void sendFullStat(ServerPlayer player, PlayerStatData data) {
         if (data == null) return;
         data.currentHp = healthManager.getCurrentHp(player.getUUID());
@@ -167,6 +211,7 @@ public class StatManager {
         stat.addProperty("combatPower", data.combatPower);
         stat.addProperty("currentHp", data.currentHp);
         stat.addProperty("maxHp", data.maxHp);
+        stat.addProperty("absorptionHp", healthManager.getAbsorptionHp(player.getUUID()));
         stat.addProperty("currentMp", data.currentMp);
         stat.addProperty("maxMp", data.maxMp);
         stat.addProperty("attack", data.attack);
@@ -207,6 +252,7 @@ public class StatManager {
         resp.addProperty("action", "hp_update");
         resp.addProperty("currentHp", data.currentHp);
         resp.addProperty("maxHp", data.maxHp);
+        resp.addProperty("absorptionHp", healthManager.getAbsorptionHp(uuid));
         resp.addProperty("currentMp", data.currentMp);
         resp.addProperty("maxMp", data.maxMp);
         ServerNetworkHandler.sendStat(player, resp.toString());
@@ -238,8 +284,9 @@ public class StatManager {
         JsonArray weapons = new JsonArray();
         for (EquipmentStatConfig.ItemEntry entry : equipmentStatConfig.items) {
             if (entry == null || entry.itemId == null) continue;
-            if (entry.itemLevel > 0.0) {
-                data.addProperty(entry.itemId, entry.itemLevel);
+            // registryId가 있는 항목만 아이템 레벨 전송 (등록된 아이템만)
+            if (entry.registryId != null && entry.itemLevel > 0.0) {
+                data.addProperty(entry.registryId, entry.itemLevel);
             }
             if (entry.weapons == 1) {
                 weapons.add(entry.itemId);

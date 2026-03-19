@@ -166,7 +166,8 @@ public final class CombatQuickslotRenderer {
 
     private static void drawCenterStatus(GuiGraphics g, Minecraft mc, Font font, int x, int y, int alpha) {
         ClientState.PlayerStats stats = ClientState.get().getPlayerStats();
-        float hpRatio = stats.maxHp() > 0 ? Mth.clamp((float) stats.currentHp() / stats.maxHp(), 0f, 1f) : 0f;
+        int effectiveMax = stats.maxHp() + stats.absorptionHp();
+        float hpRatio = effectiveMax > 0 ? Mth.clamp((float) (stats.currentHp() + stats.absorptionHp()) / effectiveMax, 0f, 1f) : 0f;
         float mpRatio = stats.maxMp() > 0 ? Mth.clamp((float) stats.currentMp() / stats.maxMp(), 0f, 1f) : 0f;
         float expRatio = Mth.clamp(mc.player.experienceProgress, 0f, 1f);
 
