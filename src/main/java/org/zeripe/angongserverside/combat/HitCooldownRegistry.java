@@ -7,6 +7,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -16,10 +17,12 @@ public final class HitCooldownRegistry {
     private static final HitCooldownRegistry INSTANCE = new HitCooldownRegistry();
 
     private volatile int defaultTicks = 7;
+    private volatile int nonWeaponTicks = 14;
     private volatile boolean useVanillaAttackSpeed = true;
     private volatile int minAttackSpeedTicks = 1;
     private volatile int maxAttackSpeedTicks = 40;
     private final Map<Item, Integer> weaponCooldownTicks = new ConcurrentHashMap<>();
+    private final Set<Item> registeredWeapons = ConcurrentHashMap.newKeySet();
 
     private HitCooldownRegistry() {}
 
@@ -29,6 +32,14 @@ public final class HitCooldownRegistry {
 
     public void setDefaultTicks(int ticks) {
         if (ticks > 0) this.defaultTicks = ticks;
+    }
+
+    public void setNonWeaponTicks(int ticks) {
+        if (ticks > 0) this.nonWeaponTicks = ticks;
+    }
+
+    public void registerWeapon(Item weapon) {
+        if (weapon != null) registeredWeapons.add(weapon);
     }
 
     public void setAttackSpeedPolicy(boolean enabled, int minTicks, int maxTicks) {
@@ -63,6 +74,10 @@ public final class HitCooldownRegistry {
         Integer manualTicks = weaponCooldownTicks.get(weapon);
         if (manualTicks != null) {
             return Math.max(1, manualTicks);
+        }
+        // 등록된 무기가 아니면 nonWeaponTicks 사용
+        if (!registeredWeapons.contains(weapon)) {
+            return nonWeaponTicks;
         }
         if (customAttackSpeed > 0.0) {
             int ticks = (int) Math.ceil(20.0 / customAttackSpeed);

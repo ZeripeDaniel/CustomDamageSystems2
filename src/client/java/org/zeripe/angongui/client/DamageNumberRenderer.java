@@ -30,18 +30,29 @@ public final class DamageNumberRenderer {
     private static final float RISE_DISTANCE = 30f;
     private static final float NORMAL_SCALE = 1.0f;
     private static final float CRIT_SCALE = 1.5f;
+    private static final int MAX_ACTIVE = 200;
 
     private static final List<DamageNumber> active = new ArrayList<>();
 
     private DamageNumberRenderer() {}
 
+    /**
+     * skinId: 공격자의 선택 스킨 (서버에서 전달). null 이면 기본 로직.
+     */
     private record DamageNumber(
             double worldX, double worldY, double worldZ,
-            int amount, boolean crit, String type, long spawnTime
+            int amount, boolean crit, String type, String skinId, long spawnTime
     ) {}
 
+    /** skinId 포함 추가 (서버 모드) */
+    public static void add(double x, double y, double z, int amount, boolean crit, String type, String skinId) {
+        if (active.size() >= MAX_ACTIVE) active.removeFirst();
+        active.add(new DamageNumber(x, y, z, amount, crit, type, skinId, System.currentTimeMillis()));
+    }
+
+    /** 기존 호환 */
     public static void add(double x, double y, double z, int amount, boolean crit, String type) {
-        active.add(new DamageNumber(x, y, z, amount, crit, type, System.currentTimeMillis()));
+        add(x, y, z, amount, crit, type, null);
     }
 
     public static void register() {
@@ -109,19 +120,40 @@ public final class DamageNumberRenderer {
             String text = NUM_FMT.format(dn.amount);
             if (dn.crit) text += "!";
             if ("HEAL".equalsIgnoreCase(dn.type)) text = "+" + text;
-            Component c = Component.literal(text);
 
             float scale = dn.crit ? CRIT_SCALE : NORMAL_SCALE;
             if (progress < 0.07f) scale *= 1.0f + 0.3f * (1.0f - progress / 0.07f);
 
-            int textW = font.width(c);
             PoseStack pose = g.pose();
             pose.pushPose();
             pose.translate(sx, sy, 0);
             pose.scale(scale, scale, 1.0f);
-            pose.translate(-textW / 2f, -4f, 0);
-            g.drawString(font, c, 1, 1, shadowColor, false);
-            g.drawString(font, c, 0, 0, color, false);
+
+            // 스킨 결정: 서버에서 받은 skinId → 스킨 사용 가능하면 스프라이트, 아니면 텍스트
+            String effectiveSkin = dn.skinId;
+            boolean useSkin = false;
+
+            if (effectiveSkin != null && DamageSkin.isEnabledForSkin(effectiveSkin)) {
+                useSkin = true;
+            } else if (effectiveSkin == null && DamageSkin.isEnabled()) {
+                // 서버 skinId 없는 경우 (환경 데미지 등) → 본인 스킨 사용
+                effectiveSkin = DamageSkin.getMySelectedSkin();
+                useSkin = DamageSkin.isEnabledForSkin(effectiveSkin);
+            }
+
+            if (useSkin) {
+                int cellW = DamageSkin.getCellWidthForSkin(effectiveSkin);
+                int cellH = DamageSkin.getCellHeightForSkin(effectiveSkin);
+                int spriteW = DamageSkin.measureWidth(text, cellW);
+                pose.translate(-spriteW / 2f, -cellH / 2f, 0);
+                DamageSkin.drawWithShadow(g, text, 0, 0, alpha, dn.crit, dn.type, effectiveSkin);
+            } else {
+                Component c = Component.literal(text);
+                int textW = font.width(c);
+                pose.translate(-textW / 2f, -4f, 0);
+                g.drawString(font, c, 1, 1, shadowColor, false);
+                g.drawString(font, c, 0, 0, color, false);
+            }
             pose.popPose();
         }
     }

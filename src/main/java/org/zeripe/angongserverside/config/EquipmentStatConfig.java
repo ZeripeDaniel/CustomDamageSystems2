@@ -25,7 +25,11 @@ public final class EquipmentStatConfig {
 
     public List<ItemEntry> items = new ArrayList<>(List.of(
             ItemEntry.woodenSwordExample(),
-            ItemEntry.leatherHelmetExample()
+            ItemEntry.netheriteSwordExample(),
+            ItemEntry.leatherHelmetExample(),
+            ItemEntry.woodenRingExample(),
+            ItemEntry.woodenNecklaceExample(),
+            ItemEntry.woodenEarringExample()
     ));
 
     public static EquipmentStatConfig load(Logger logger) {
@@ -97,6 +101,11 @@ public final class EquipmentStatConfig {
         public double attackSpeed = 0.0;
         public double cooldownReduction = 0.0;
         public double moveSpeed = 0.0;
+        public int strength = 0;
+        public int agility = 0;
+        public int intelligence = 0;
+        public int luck = 0;
+        public int weapons = 0;
 
         private static ItemEntry woodenSwordExample() {
             ItemEntry e = new ItemEntry();
@@ -110,6 +119,26 @@ public final class EquipmentStatConfig {
             e.critRate = 2.0;
             e.critDamage = 10.0;
             e.attackSpeed = 4.0;
+            e.weapons = 1;
+            return e;
+        }
+
+        private static ItemEntry netheriteSwordExample() {
+            ItemEntry e = new ItemEntry();
+            e.itemId = "minecraft:netherite_sword";
+            e.slots = new ArrayList<>(List.of("mainhand"));
+            e.itemLevel = 50.0;
+            e.itemLevelSlot = 1;
+            e.overrideVanillaMainhand = true;
+            e.overrideVanillaArmor = false;
+            e.attack = 120.0;
+            e.magicAttack = 30.0;
+            e.critRate = 8.0;
+            e.critDamage = 40.0;
+            e.attackSpeed = 4.0;
+            e.strength = 10;
+            e.agility = 5;
+            e.weapons = 1;
             return e;
         }
 
@@ -123,6 +152,36 @@ public final class EquipmentStatConfig {
             e.overrideVanillaArmor = true;
             e.defense = 4.0;
             e.hp = 5.0;
+            return e;
+        }
+
+        private static ItemEntry woodenRingExample() {
+            ItemEntry e = new ItemEntry();
+            e.itemId = "customdamagesystem:wooden_ring";
+            e.slots = new ArrayList<>(List.of("ring"));
+            e.itemLevel = 1.0;
+            e.strength = 2;
+            e.luck = 1;
+            return e;
+        }
+
+        private static ItemEntry woodenNecklaceExample() {
+            ItemEntry e = new ItemEntry();
+            e.itemId = "customdamagesystem:wooden_necklace";
+            e.slots = new ArrayList<>(List.of("necklace"));
+            e.itemLevel = 1.0;
+            e.intelligence = 2;
+            e.agility = 1;
+            return e;
+        }
+
+        private static ItemEntry woodenEarringExample() {
+            ItemEntry e = new ItemEntry();
+            e.itemId = "customdamagesystem:wooden_earring";
+            e.slots = new ArrayList<>(List.of("earring"));
+            e.itemLevel = 1.0;
+            e.agility = 2;
+            e.luck = 1;
             return e;
         }
     }

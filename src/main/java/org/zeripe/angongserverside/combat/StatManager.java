@@ -14,6 +14,10 @@ import org.zeripe.angongserverside.config.EquipmentStatConfig;
 import org.zeripe.angongserverside.network.ServerNetworkHandler;
 import org.zeripe.angongserverside.stats.PlayerStatData;
 import org.zeripe.angongserverside.stats.StatStorage;
+import org.zeripe.customdamagesystem.item.AccessoryDataManager;
+import org.zeripe.customdamagesystem.item.AccessoryDefinition;
+import org.zeripe.customdamagesystem.item.AccessoryInventory;
+import org.zeripe.customdamagesystem.item.AccessoryRegistry;
 
 import java.util.Map;
 import java.util.UUID;
@@ -66,6 +70,7 @@ public class StatManager {
 
         applyMoveSpeed(player, data);
         sendFullStat(player, data);
+        sendItemLevels(player);
         logger.info("[StatManager] {} 스탯 로드 완료", name);
     }
 
@@ -225,6 +230,26 @@ public class StatManager {
         ServerNetworkHandler.sendStat(player, resp.toString());
     }
 
+    private void sendItemLevels(ServerPlayer player) {
+        if (equipmentStatConfig == null) return;
+        JsonObject resp = new JsonObject();
+        resp.addProperty("action", "item_levels");
+        JsonObject data = new JsonObject();
+        JsonArray weapons = new JsonArray();
+        for (EquipmentStatConfig.ItemEntry entry : equipmentStatConfig.items) {
+            if (entry == null || entry.itemId == null) continue;
+            if (entry.itemLevel > 0.0) {
+                data.addProperty(entry.itemId, entry.itemLevel);
+            }
+            if (entry.weapons == 1) {
+                weapons.add(entry.itemId);
+            }
+        }
+        resp.add("data", data);
+        resp.add("weapons", weapons);
+        ServerNetworkHandler.sendStat(player, resp.toString());
+    }
+
     private void applyMoveSpeed(ServerPlayer player, PlayerStatData data) {
         AttributeInstance attr = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (attr != null) {
@@ -284,6 +309,23 @@ public class StatManager {
         applySlot(player, data, EquipmentSlot.CHEST);
         applySlot(player, data, EquipmentSlot.LEGS);
         applySlot(player, data, EquipmentSlot.FEET);
+
+        // ── Accessory stats ──
+        applyAccessories(player.getUUID(), data);
+    }
+
+    private void applyAccessories(UUID uuid, PlayerStatData data) {
+        AccessoryInventory inv = AccessoryDataManager.getOrLoad(uuid);
+        for (int i = 0; i < AccessoryInventory.SIZE; i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack.isEmpty()) continue;
+            AccessoryRegistry.find(stack.getItem()).ifPresent(def -> {
+                data.equipStrength += def.strength();
+                data.equipAgility += def.agility();
+                data.equipIntelligence += def.intelligence();
+                data.equipLuck += def.luck();
+            });
+        }
     }
 
     private void applySlot(ServerPlayer player, PlayerStatData data, EquipmentSlot slot) {
@@ -298,6 +340,10 @@ public class StatManager {
         data.equipMagicAttack += (int) Math.round(entry.magicAttack);
         data.equipDefense += (int) Math.round(entry.defense);
         data.equipHp += (int) Math.round(entry.hp);
+        data.equipStrength += entry.strength;
+        data.equipAgility += entry.agility;
+        data.equipIntelligence += entry.intelligence;
+        data.equipLuck += entry.luck;
         data.equipCritRate += entry.critRate;
         data.equipCritDamage += entry.critDamage;
         data.equipCooldownReduction += entry.cooldownReduction;
@@ -340,11 +386,24 @@ public class StatManager {
     }
 
     private String snapshotEquipment(ServerPlayer player) {
-        return slotSignature(player, EquipmentSlot.MAINHAND)
-                + "|" + slotSignature(player, EquipmentSlot.HEAD)
-                + "|" + slotSignature(player, EquipmentSlot.CHEST)
-                + "|" + slotSignature(player, EquipmentSlot.LEGS)
-                + "|" + slotSignature(player, EquipmentSlot.FEET);
+        StringBuilder sb = new StringBuilder();
+        sb.append(slotSignature(player, EquipmentSlot.MAINHAND));
+        sb.append("|").append(slotSignature(player, EquipmentSlot.HEAD));
+        sb.append("|").append(slotSignature(player, EquipmentSlot.CHEST));
+        sb.append("|").append(slotSignature(player, EquipmentSlot.LEGS));
+        sb.append("|").append(slotSignature(player, EquipmentSlot.FEET));
+
+        AccessoryInventory accInv = AccessoryDataManager.getOrLoad(player.getUUID());
+        for (int i = 0; i < AccessoryInventory.SIZE; i++) {
+            sb.append("|acc").append(i).append(":");
+            ItemStack s = accInv.getItem(i);
+            if (s.isEmpty()) {
+                sb.append("empty");
+            } else {
+                sb.append(BuiltInRegistries.ITEM.getKey(s.getItem()));
+            }
+        }
+        return sb.toString();
     }
 
     private String slotSignature(ServerPlayer player, EquipmentSlot slot) {

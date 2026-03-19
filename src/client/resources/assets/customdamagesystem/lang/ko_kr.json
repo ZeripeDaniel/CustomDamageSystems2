@@ -25,5 +25,21 @@
   "ui.customdamagesystem.mode.combat": "[전투 모드]",
   "ui.customdamagesystem.mode.life_bracket": "[생활모드]",
   "ui.customdamagesystem.mode.combat_bracket": "[전투모드]",
-  "ui.customdamagesystem.mode.skill_used": "스킬 트리거: %1$s"
+  "ui.customdamagesystem.mode.skill_used": "스킬 트리거: %1$s",
+  "ui.customdamagesystem.acc.title": "액세서리",
+  "ui.customdamagesystem.acc.ring": "반지",
+  "ui.customdamagesystem.acc.necklace": "목걸이",
+  "ui.customdamagesystem.acc.earring": "귀걸이",
+  "ui.customdamagesystem.acc.weapon": "무기",
+  "ui.customdamagesystem.acc.type.ring": "\u00a77[반지]",
+  "ui.customdamagesystem.acc.type.necklace": "\u00a77[목걸이]",
+  "ui.customdamagesystem.acc.type.earring": "\u00a77[귀걸이]",
+  "ui.customdamagesystem.acc.type.weapon": "\u00a77[무기]",
+  "ui.customdamagesystem.tab.inventory": "인벤토리",
+  "ui.customdamagesystem.tab.accessory": "액세서리",
+  "item.customdamagesystem.wooden_ring": "나무 반지",
+  "item.customdamagesystem.wooden_necklace": "나무 목걸이",
+  "item.customdamagesystem.wooden_earring": "나무 귀걸이",
+  "ui.customdamagesystem.item.level": "아이템 레벨: %s",
+  "itemGroup.customdamagesystem.items": "커스텀 데미지 아이템"
 }

@@ -6,13 +6,20 @@ import com.google.gson.JsonParser;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import org.zeripe.angongcommon.network.StatPayload;
+import org.zeripe.angongui.client.ClientItemLevelCache;
 import org.zeripe.angongui.client.ClientState;
+import org.zeripe.angongui.client.CombatModeState;
 import org.zeripe.angongui.client.DamageNumberRenderer;
+import org.zeripe.angongui.client.DamageSkin;
 import org.zeripe.angongui.client.LocalStatManager;
+import org.zeripe.customdamagesystem.item.AccessoryDefinition;
+import org.zeripe.customdamagesystem.item.AccessoryRegistry;
+import org.zeripe.customdamagesystem.item.AccessoryType;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public final class NetworkHandler {
     private static boolean serverAuthoritative = false;
@@ -41,7 +48,10 @@ public final class NetworkHandler {
                     serverAuthoritative = false;
                     LocalStatManager.deactivate();
                     DamageNumberRenderer.clear();
+                    DamageSkin.clearServerData();
                     ClientState.get().clear();
+                    ClientItemLevelCache.clear();
+                    CombatModeState.reset();
                 }));
     }
 
@@ -56,10 +66,28 @@ public final class NetworkHandler {
         }
     }
 
+    public static boolean isServerAuthoritative() {
+        return serverAuthoritative;
+    }
+
     public static void requestStat() {
         if (!serverAuthoritative) return;
         if (!ClientPlayNetworking.canSend(StatPayload.TYPE)) return;
         ClientPlayNetworking.send(StatPayload.of("{\"action\":\"get\"}"));
+    }
+
+    /** 서버에 스킨 순환 요청 */
+    public static void requestSkinCycle() {
+        if (!serverAuthoritative) return;
+        if (!ClientPlayNetworking.canSend(StatPayload.TYPE)) return;
+        ClientPlayNetworking.send(StatPayload.of("{\"action\":\"skin_cycle\"}"));
+    }
+
+    /** 서버에 특정 스킨 선택 요청 */
+    public static void requestSkinSelect(String skinId) {
+        if (!serverAuthoritative) return;
+        if (!ClientPlayNetworking.canSend(StatPayload.TYPE)) return;
+        ClientPlayNetworking.send(StatPayload.of("{\"action\":\"skin_select\",\"skinId\":\"" + skinId + "\"}"));
     }
 
     private static void handleStatResponse(String json) {
@@ -71,6 +99,9 @@ public final class NetworkHandler {
                 case "hp_update" -> parseHpUpdate(obj);
                 case "damage_number" -> parseDamageNumber(obj);
                 case "buff_update" -> parseBuffUpdate(obj);
+                case "item_levels" -> parseItemLevels(obj);
+                case "skin_list" -> parseSkinList(obj);
+                case "skin_change" -> parseSkinChange(obj);
             }
         } catch (Exception ignored) {
         }
@@ -132,7 +163,58 @@ public final class NetworkHandler {
         int amount = obj.has("amount") ? obj.get("amount").getAsInt() : 0;
         boolean crit = obj.has("crit") && obj.get("crit").getAsBoolean();
         String type = obj.has("type") ? obj.get("type").getAsString() : "PHYSICAL";
-        DamageNumberRenderer.add(x, y, z, amount, crit, type);
+        String skinId = obj.has("skinId") ? obj.get("skinId").getAsString() : null;
+        DamageNumberRenderer.add(x, y, z, amount, crit, type, skinId);
+    }
+
+    private static void parseSkinList(JsonObject obj) {
+        int cellW = obj.has("cellWidth") ? obj.get("cellWidth").getAsInt() : 16;
+        int cellH = obj.has("cellHeight") ? obj.get("cellHeight").getAsInt() : 24;
+
+        List<DamageSkin.SkinPackInfo> packs = new ArrayList<>();
+        JsonArray packsArr = obj.getAsJsonArray("packs");
+        if (packsArr != null) {
+            for (var el : packsArr) {
+                JsonObject p = el.getAsJsonObject();
+                packs.add(new DamageSkin.SkinPackInfo(
+                        p.get("id").getAsString(),
+                        p.has("displayName") ? p.get("displayName").getAsString() : p.get("id").getAsString(),
+                        p.has("namespace") ? p.get("namespace").getAsString() : "customdamagesystem",
+                        p.has("texturePath") ? p.get("texturePath").getAsString() : "",
+                        p.has("cellWidth") ? p.get("cellWidth").getAsInt() : cellW,
+                        p.has("cellHeight") ? p.get("cellHeight").getAsInt() : cellH
+                ));
+            }
+        }
+
+        Set<String> owned = new LinkedHashSet<>();
+        JsonArray ownedArr = obj.getAsJsonArray("owned");
+        if (ownedArr != null) {
+            for (var el : ownedArr) owned.add(el.getAsString());
+        }
+
+        String selected = obj.has("selected") ? obj.get("selected").getAsString() : "none";
+
+        DamageSkin.setServerPacks(packs, cellW, cellH, owned, selected);
+    }
+
+    private static void parseSkinChange(JsonObject obj) {
+        String uuidStr = obj.has("uuid") ? obj.get("uuid").getAsString() : null;
+        String skinId = obj.has("skinId") ? obj.get("skinId").getAsString() : "none";
+        if (uuidStr == null) return;
+
+        try {
+            UUID uuid = UUID.fromString(uuidStr);
+            DamageSkin.setPlayerSkin(uuid, skinId);
+
+            // 본인이면 내 선택도 업데이트
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.player != null && mc.player.getUUID().equals(uuid)) {
+                DamageSkin.setMySelectedSkin(skinId);
+                DamageSkin.showSwitchMessage();
+            }
+        } catch (IllegalArgumentException ignored) {
+        }
     }
 
     private static void parseBuffUpdate(JsonObject obj) {
@@ -148,5 +230,27 @@ public final class NetworkHandler {
             ));
         }
         ClientState.get().setActiveBuffs(buffs);
+    }
+
+    private static void parseItemLevels(JsonObject obj) {
+        JsonObject data = obj.getAsJsonObject("data");
+        if (data != null) {
+            ClientItemLevelCache.clear();
+            for (var entry : data.entrySet()) {
+                ClientItemLevelCache.put(entry.getKey(), entry.getValue().getAsDouble());
+            }
+        }
+        JsonArray weapons = obj.getAsJsonArray("weapons");
+        if (weapons != null) {
+            for (var el : weapons) {
+                String itemId = el.getAsString();
+                BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)).ifPresent(ref -> {
+                    if (!AccessoryRegistry.isAccessory(ref.value())) {
+                        AccessoryRegistry.register(ref.value(),
+                                new AccessoryDefinition(AccessoryType.WEAPON, 0, 0, 0, 0));
+                    }
+                });
+            }
+        }
     }
 }

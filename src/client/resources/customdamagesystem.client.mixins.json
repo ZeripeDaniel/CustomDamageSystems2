@@ -4,7 +4,9 @@
   "package": "org.zeripe.customdamagesystem.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "InGameHudMixin"
+    "CombatModeBlockerMixin",
+    "InGameHudMixin",
+    "MouseHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

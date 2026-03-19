@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.zeripe.angongui.client.config.ClientUiConfig;
 import org.zeripe.angongui.client.config.KeyCodeResolver;
+import org.zeripe.angongui.client.network.NetworkHandler;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -13,6 +14,7 @@ import org.lwjgl.glfw.GLFW;
 public final class InputHandler {
     private static boolean wasStatKeyDown = false;
     private static boolean wasModeToggleDown = false;
+    private static boolean wasSkinKeyDown = false;
 
     private InputHandler() {}
 
@@ -56,6 +58,20 @@ public final class InputHandler {
                 }
             }
             wasStatKeyDown = keyDown;
+
+            // Ctrl + K = 데미지 스킨 전환
+            boolean skinToggle = ctrlDown && InputConstants.isKeyDown(window, GLFW.GLFW_KEY_K);
+            if (skinToggle && !wasSkinKeyDown) {
+                if (DamageSkin.isServerMode()) {
+                    // 서버 모드: 서버에 스킨 순환 요청
+                    NetworkHandler.requestSkinCycle();
+                } else if (DamageSkin.isEnabled()) {
+                    // 로컬 모드 (폴백)
+                    DamageSkin.nextPack();
+                    DamageSkin.showSwitchMessage();
+                }
+            }
+            wasSkinKeyDown = skinToggle;
 
             CombatModeState.tick(client);
             CombatSkillInputRouter.tick(client);

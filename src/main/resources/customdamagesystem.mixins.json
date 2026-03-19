@@ -4,6 +4,7 @@
   "package": "org.zeripe.customdamagesystem.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "CombatModeServerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

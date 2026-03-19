@@ -1,8 +1,10 @@
 package org.zeripe.angongui.client;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
+import org.zeripe.angongcommon.network.StatPayload;
 
 public final class CombatModeState {
     public enum Mode {
@@ -35,6 +37,10 @@ public final class CombatModeState {
                     ? "ui.customdamagesystem.mode.combat"
                     : "ui.customdamagesystem.mode.life";
             mc.player.displayClientMessage(Component.literal(I18n.get(key)), true);
+            if (ClientPlayNetworking.canSend(StatPayload.TYPE)) {
+                ClientPlayNetworking.send(StatPayload.of(
+                        "{\"action\":\"combat_mode\",\"enabled\":" + isCombatMode() + "}"));
+            }
         }
     }
 
@@ -54,5 +60,12 @@ public final class CombatModeState {
 
     public static float transitionProgress() {
         return transition;
+    }
+
+    /** 서버 접속 해제 시 생활모드로 초기화 */
+    public static void reset() {
+        mode = Mode.LIFE;
+        transition = 0.0f;
+        lockedLifeHotbarSlot = 0;
     }
 }

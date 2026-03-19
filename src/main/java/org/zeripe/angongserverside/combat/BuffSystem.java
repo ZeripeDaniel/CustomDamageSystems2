@@ -2,12 +2,12 @@ package org.zeripe.angongserverside.combat;
 
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public class BuffSystem {
@@ -24,7 +24,7 @@ public class BuffSystem {
     }
 
     public void addBuff(UUID playerId, Buff buff, double buffDurationPercent) {
-        List<ActiveBuff> buffs = playerBuffs.computeIfAbsent(playerId, k -> new ArrayList<>());
+        List<ActiveBuff> buffs = playerBuffs.computeIfAbsent(playerId, k -> new CopyOnWriteArrayList<>());
         buffs.removeIf(ab -> ab.buff().id().equals(buff.id()));
 
         long adjustedDurationMs = (long) (buff.durationMs() * (buffDurationPercent / 100.0));

@@ -27,6 +27,7 @@ public class CustomHealthManager {
 
     public void setMaxHp(UUID uuid, int newMax) {
         int oldMax = maxHp.getOrDefault(uuid, 10);
+        newMax = Math.max(1, newMax);
         maxHp.put(uuid, newMax);
 
         int current = currentHp.getOrDefault(uuid, newMax);
@@ -34,7 +35,7 @@ public class CustomHealthManager {
             currentHp.put(uuid, newMax);
         } else if (newMax > oldMax && oldMax > 0) {
             double ratio = (double) current / oldMax;
-            currentHp.put(uuid, (int) (ratio * newMax));
+            currentHp.put(uuid, Math.max(1, (int) (ratio * newMax)));
         }
     }
 

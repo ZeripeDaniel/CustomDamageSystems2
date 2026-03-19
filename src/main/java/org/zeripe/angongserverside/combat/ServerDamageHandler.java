@@ -52,10 +52,23 @@ public class ServerDamageHandler {
         this.monsterAttackGroupConfig = monsterAttackGroupConfig;
     }
 
+    private long lastCleanupTick = 0;
+    private static final long CLEANUP_INTERVAL_TICKS = 1200L; // 60초마다
+
     public void register() {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(this::onAllowDamage);
         ServerLivingEntityEvents.AFTER_DEATH.register(this::onAfterDeath);
         ServerPlayerEvents.AFTER_RESPAWN.register(this::onAfterRespawn);
+    }
+
+    /** 만료된 쿨다운 엔트리 정리 (서버 틱에서 주기적 호출) */
+    public void cleanupExpiredCooldowns(long currentGameTime) {
+        if (currentGameTime - lastCleanupTick < CLEANUP_INTERVAL_TICKS) return;
+        lastCleanupTick = currentGameTime;
+        cooldownByVictimAndKey.entrySet().removeIf(entry -> {
+            entry.getValue().entrySet().removeIf(e -> currentGameTime >= e.getValue());
+            return entry.getValue().isEmpty();
+        });
     }
 
     private boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
@@ -115,7 +128,7 @@ public class ServerDamageHandler {
             statManager.syncHpToClient(attacker);
         }
         Vec3 pos = victim.position().add(0, 1.5, 0);
-        dmgSender.sendDamageNumber(pos, result);
+        dmgSender.sendDamageNumber(pos, result, attacker != null ? attacker.getUUID() : null);
         triggerEntityHurtFeedback(victim, source, cooldownTicks);
         applyCooldown(victim, source, cooldownKey, cooldownTicks);
         statManager.syncHpToClient(victim);
@@ -156,7 +169,8 @@ public class ServerDamageHandler {
         }
 
         Vec3 pos = victim.position().add(0, victim.getBbHeight() * 0.6, 0);
-        dmgSender.sendDamageNumber(pos, new StatCalculationEngine.DamageResult(damage, crit, type, 0));
+        dmgSender.sendDamageNumber(pos, new StatCalculationEngine.DamageResult(damage, crit, type, 0),
+                attacker != null ? attacker.getUUID() : null);
 
         passthroughDamage.add(victim.getId());
         try {

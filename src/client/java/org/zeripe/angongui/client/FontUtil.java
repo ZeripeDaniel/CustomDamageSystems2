@@ -7,8 +7,8 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 
 public final class FontUtil {
-    public static final ResourceLocation HEIROF = ResourceLocation.fromNamespaceAndPath("angongui", "heirof");
-    public static final ResourceLocation NOTOSANS = ResourceLocation.fromNamespaceAndPath("angongui", "notosans");
+    public static final ResourceLocation HEIROF = ResourceLocation.fromNamespaceAndPath("customdamagesystem", "heirof");
+    public static final ResourceLocation NOTOSANS = ResourceLocation.fromNamespaceAndPath("customdamagesystem", "notosans");
 
     private static final Style S_HEIROF = Style.EMPTY.withFont(HEIROF);
     private static final Style S_NOTOSANS = Style.EMPTY.withFont(NOTOSANS);

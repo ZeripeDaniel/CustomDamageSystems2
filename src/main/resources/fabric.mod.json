@@ -15,6 +15,7 @@
       "org.zeripe.angongui.client.CustomDamageSystemClient"
     ],
     "main": [
+      "org.zeripe.customdamagesystem.Customdamagesystem",
       "org.zeripe.angongserverside.CustomDamageSystemServerMod"
     ]
   },

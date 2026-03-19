@@ -25,5 +25,21 @@
   "ui.customdamagesystem.mode.combat": "[Combat Mode]",
   "ui.customdamagesystem.mode.life_bracket": "[LIFE MODE]",
   "ui.customdamagesystem.mode.combat_bracket": "[COMBAT MODE]",
-  "ui.customdamagesystem.mode.skill_used": "Skill Trigger: %1$s"
+  "ui.customdamagesystem.mode.skill_used": "Skill Trigger: %1$s",
+  "ui.customdamagesystem.acc.title": "Accessory",
+  "ui.customdamagesystem.acc.ring": "Ring",
+  "ui.customdamagesystem.acc.necklace": "Necklace",
+  "ui.customdamagesystem.acc.earring": "Earring",
+  "ui.customdamagesystem.acc.weapon": "Weapon",
+  "ui.customdamagesystem.acc.type.ring": "\u00a77[Ring]",
+  "ui.customdamagesystem.acc.type.necklace": "\u00a77[Necklace]",
+  "ui.customdamagesystem.acc.type.earring": "\u00a77[Earring]",
+  "ui.customdamagesystem.acc.type.weapon": "\u00a77[Weapon]",
+  "ui.customdamagesystem.tab.inventory": "Inventory",
+  "ui.customdamagesystem.tab.accessory": "Accessory",
+  "item.customdamagesystem.wooden_ring": "Wooden Ring",
+  "item.customdamagesystem.wooden_necklace": "Wooden Necklace",
+  "item.customdamagesystem.wooden_earring": "Wooden Earring",
+  "ui.customdamagesystem.item.level": "Item Level: %s",
+  "itemGroup.customdamagesystem.items": "Custom Damage Items"
 }
