@@ -63,10 +63,9 @@ public class StatManager {
         playerData.put(uuid, data);
         equipmentSnapshot.put(uuid, snapshotEquipment(player));
 
-        healthManager.initPlayer(player, data.maxHp);
-        data.currentHp = data.maxHp;
-        data.currentMp = data.maxMp;
-        healthManager.pinVanillaHealth(player);
+        healthManager.initPlayer(player, data.maxHp, data.currentHp);
+        data.currentHp = healthManager.getCurrentHp(player.getUUID());
+        data.currentMp = Math.max(0, Math.min(data.currentMp, data.maxMp));
 
         applyMoveSpeed(player, data);
         sendFullStat(player, data);
@@ -77,7 +76,10 @@ public class StatManager {
 
     public void onPlayerQuit(UUID uuid) {
         PlayerStatData data = playerData.remove(uuid);
-        if (data != null) storage.save(data);
+        if (data != null) {
+            data.currentHp = healthManager.getCurrentHp(uuid);
+            storage.save(data);
+        }
         equipmentSnapshot.remove(uuid);
         healthManager.removePlayer(uuid);
         buffSystem.clearPlayer(uuid);
@@ -412,7 +414,9 @@ public class StatManager {
     }
 
     public void saveAll() {
-        for (PlayerStatData data : playerData.values()) {
+        for (var entry : playerData.entrySet()) {
+            PlayerStatData data = entry.getValue();
+            data.currentHp = healthManager.getCurrentHp(entry.getKey());
             storage.save(data);
         }
         logger.info("[StatManager] 전체 스탯 저장 완료 ({}명)", playerData.size());

@@ -59,6 +59,8 @@ public class CustomDamageSystemServerMod implements ModInitializer {
     private int tickCounter = 0;
     private int equipmentSyncCounter = 0;
     private int equipmentSyncIntervalTicks = 20;
+    private int autoSaveCounter = 0;
+    private static final int AUTO_SAVE_INTERVAL_TICKS = 1200; // 1분 (20tps * 60s)
 
     public static CustomHealthManager getHealthManager() {
         return INSTANCE != null ? INSTANCE.healthManager : null;
@@ -223,6 +225,14 @@ public class CustomDamageSystemServerMod implements ModInitializer {
         }
         if (damageHandler != null) {
             damageHandler.cleanupExpiredCooldowns(server.overworld().getGameTime());
+        }
+        autoSaveCounter++;
+        if (autoSaveCounter >= AUTO_SAVE_INTERVAL_TICKS) {
+            autoSaveCounter = 0;
+            if (statManager != null) statManager.saveAll();
+            AccessoryDataManager.saveAll();
+            if (skinManager != null) skinManager.saveAll();
+            LOGGER.debug("[CustomDamageSystem] 자동 저장 완료");
         }
     }
 }

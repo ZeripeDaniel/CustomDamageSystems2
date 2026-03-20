@@ -60,8 +60,8 @@ public class PlayerStatData {
     public transient boolean overrideMainhandVanillaAttributes = false;
     public transient boolean overrideVanillaArmor = false;
 
-    public transient int currentHp = 10;
-    public transient int currentMp = 0;
+    public int currentHp = 10;
+    public int currentMp = 0;
 
     public static PlayerStatData defaultFor(String uuid, String name) {
         PlayerStatData d = new PlayerStatData();

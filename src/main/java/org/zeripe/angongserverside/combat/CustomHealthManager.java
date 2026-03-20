@@ -30,6 +30,15 @@ public class CustomHealthManager {
         pinVanillaHealth(player);
     }
 
+    public void initPlayer(ServerPlayer player, int max, int savedHp) {
+        UUID uuid = player.getUUID();
+        maxHp.put(uuid, max);
+        int hp = Math.max(1, Math.min(savedHp, max));
+        currentHp.put(uuid, hp);
+        absorptionHp.put(uuid, 0);
+        pinVanillaHealth(player);
+    }
+
     public void setMaxHp(UUID uuid, int newMax) {
         int oldMax = maxHp.getOrDefault(uuid, 10);
         newMax = Math.max(1, newMax);
