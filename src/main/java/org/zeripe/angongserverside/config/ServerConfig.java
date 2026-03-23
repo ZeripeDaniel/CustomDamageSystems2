@@ -20,6 +20,16 @@ public final class ServerConfig {
     public String _comment = "Server-side combat tuning. If this file exists on a modded server, server values are authoritative.";
     public String _usage = "Change numbers, save the file, then restart server/world.";
 
+    // === 시스템 토글 ===
+    public boolean statSystemEnabled = true;          // 스탯 계산 + API 노출
+    public boolean damageSystemEnabled = true;        // 바닐라 데미지 가로채기 → 커스텀 공식 적용
+    public boolean customHealthEnabled = true;        // 커스텀 HP 시스템 (damageSystem=true 일 때만 유효)
+    public boolean customHudEnabled = true;           // 클라이언트 커스텀 HUD 표시
+    public boolean questSystemEnabled = true;         // 퀘스트 시스템 활성화
+    public int dailyResetHour = 9;                     // 일일 퀘스트 초기화 시각 (0~23)
+    public String dailyResetTimezone = "Asia/Seoul";   // 초기화 기준 시간대
+    public boolean partyFriendlyFire = false;          // 파티원 간 PvP 허용 여부
+
     public int defaultHitCooldownTicks = 7;
     public int nonWeaponHitCooldownTicks = 14;
     public int equipmentSyncIntervalTicks = 20;
@@ -36,6 +46,24 @@ public final class ServerConfig {
     public double damageNumberRangeY = 10.0;
 
     public boolean economyEnabled = true;
+    public String economyProvider = "internal"; // "internal", "scoreboard"
+    public String scoreboardObjective = "gold";
+
+    // === 웹 패널 설정 ===
+    public boolean webPanelEnabled = false;
+    public int webPanelPort = 8080;
+    public String webPanelPassword = "changeme";
+    public String restartBatPath = "";
+
+    // === MySQL 설정 ===
+    public boolean useMySQL = false;
+    public String mysqlHost = "localhost";
+    public int mysqlPort = 3306;
+    public String mysqlDatabase = "customdamagesystem";
+    public String mysqlUsername = "root";
+    public String mysqlPassword = "";
+    public int mysqlPoolSize = 10;
+    public String mysqlTablePrefix = "cds_";
 
     public static ServerConfig load(Logger logger) {
         Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);

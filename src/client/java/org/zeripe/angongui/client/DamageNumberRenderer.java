@@ -59,6 +59,8 @@ public final class DamageNumberRenderer {
         HudRenderCallback.EVENT.register((g, tickDelta) -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
+            // 대미지 시스템 비활성화 시 대미지 숫자 표시하지 않음
+            if (!ClientState.get().isDamageSystemEnabled()) return;
             render(g, mc.font);
         });
     }

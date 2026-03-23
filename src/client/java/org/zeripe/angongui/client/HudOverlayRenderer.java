@@ -41,6 +41,11 @@ public final class HudOverlayRenderer {
         HudRenderCallback.EVENT.register((g, tickDelta) -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
+
+            // 서버가 커스텀 HUD 또는 커스텀 체력을 비활성화했으면 렌더링하지 않음 → 바닐라 하트가 보임
+            if (!ClientState.get().isCustomHudEnabled()) return;
+            if (!ClientState.get().isCustomHealthEnabled()) return;
+
             renderHpMpBars(g, mc.font, mc);
         });
     }

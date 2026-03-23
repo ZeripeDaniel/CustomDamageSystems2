@@ -40,11 +40,21 @@ public final class NetworkHandler {
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
                 client.execute(() -> {
+                    // 서버/싱글 접속 시 이전 상태 초기화 → 서버 신호 올 때까지 바닐라 모드
+                    ClientState.get().clear();
+                    DamageNumberRenderer.clear();
+                    DamageSkin.clearServerData();
+                    ClientItemLevelCache.clear();
+                    CombatModeState.reset();
+
                     if (ClientPlayNetworking.canSend(StatPayload.TYPE)) {
+                        LOGGER.info("[CDS-Client] JOIN: CDS 서버 감지, waitingForConfig=true");
                         serverAuthoritative = true;
+                        ClientState.get().setWaitingForConfig(true);
                         LocalStatManager.deactivate();
                         requestStat();
                     } else {
+                        LOGGER.info("[CDS-Client] JOIN: 바닐라 서버 (CDS 채널 없음)");
                         serverAuthoritative = false;
                         LocalStatManager.activate();
                     }
@@ -59,6 +69,10 @@ public final class NetworkHandler {
                     ClientState.get().clear();
                     ClientItemLevelCache.clear();
                     CombatModeState.reset();
+                    try {
+                        Class<?> registry = Class.forName("org.zeripe.angonggui.client.tooltip.ItemTooltipRegistry");
+                        registry.getMethod("clear").invoke(null);
+                    } catch (Exception ignored) {}
                 }));
     }
 
@@ -97,11 +111,15 @@ public final class NetworkHandler {
         ClientPlayNetworking.send(StatPayload.of("{\"action\":\"skin_select\",\"skinId\":\"" + skinId + "\"}"));
     }
 
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("CDS-Client");
+
     private static void handleStatResponse(String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             String action = obj.has("action") ? obj.get("action").getAsString() : "";
+            LOGGER.info("[CDS-Client] 패킷 수신: action={}", action);
             switch (action) {
+                case "system_config" -> parseSystemConfig(obj);
                 case "stat_data" -> parseFullStatData(obj);
                 case "hp_update" -> parseHpUpdate(obj);
                 case "damage_number" -> parseDamageNumber(obj);
@@ -114,6 +132,32 @@ public final class NetworkHandler {
                 case "accessory_registry_sync" -> parseAccessoryRegistrySync(obj);
             }
         } catch (Exception ignored) {
+        }
+    }
+
+    private static void parseSystemConfig(JsonObject obj) {
+        LOGGER.info("[CDS-Client] system_config 수신: hud={}, health={}, damage={}, stat={}",
+                obj.has("customHudEnabled") ? obj.get("customHudEnabled") : "없음",
+                obj.has("customHealthEnabled") ? obj.get("customHealthEnabled") : "없음",
+                obj.has("damageSystemEnabled") ? obj.get("damageSystemEnabled") : "없음",
+                obj.has("statSystemEnabled") ? obj.get("statSystemEnabled") : "없음");
+        ClientState.get().setSystemConfig(
+                !obj.has("statSystemEnabled") || obj.get("statSystemEnabled").getAsBoolean(),
+                !obj.has("damageSystemEnabled") || obj.get("damageSystemEnabled").getAsBoolean(),
+                !obj.has("customHealthEnabled") || obj.get("customHealthEnabled").getAsBoolean(),
+                !obj.has("customHudEnabled") || obj.get("customHudEnabled").getAsBoolean()
+        );
+        // AngongGui 설정
+        if (obj.has("angongGui")) {
+            JsonObject gui = obj.getAsJsonObject("angongGui");
+            ClientState.get().setAngongGuiConfig(
+                    !gui.has("overlayEnabled") || gui.get("overlayEnabled").getAsBoolean(),
+                    !gui.has("menuBarEnabled") || gui.get("menuBarEnabled").getAsBoolean(),
+                    !gui.has("moneyDisplayEnabled") || gui.get("moneyDisplayEnabled").getAsBoolean(),
+                    !gui.has("partyWindowEnabled") || gui.get("partyWindowEnabled").getAsBoolean(),
+                    !gui.has("questWindowEnabled") || gui.get("questWindowEnabled").getAsBoolean(),
+                    !gui.has("customPauseScreenEnabled") || gui.get("customPauseScreenEnabled").getAsBoolean()
+            );
         }
     }
 
@@ -275,6 +319,7 @@ public final class NetworkHandler {
                 JsonObject slotData = el.getAsJsonObject();
                 String itemId = slotData.has("itemId") ? slotData.get("itemId").getAsString() : null;
                 int cmd = slotData.has("cmd") ? slotData.get("cmd").getAsInt() : 0;
+                String registryId = slotData.has("registryId") ? slotData.get("registryId").getAsString() : null;
                 String displayName = slotData.has("displayName") ? slotData.get("displayName").getAsString() : null;
                 JsonArray loreArr = slotData.has("lore") ? slotData.getAsJsonArray("lore") : null;
 
@@ -288,6 +333,20 @@ public final class NetworkHandler {
                                 stack.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
                                         new net.minecraft.world.item.component.CustomModelData(
                                                 List.of((float) cmd), List.of(), List.of(), List.of()));
+                            }
+                            // registry_id 복원 → 커스텀 툴팁 연결용 (PublicBukkitValues 호환 형식)
+                            if (registryId != null) {
+                                net.minecraft.world.item.component.CustomData existing =
+                                        stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                                                net.minecraft.world.item.component.CustomData.EMPTY);
+                                net.minecraft.nbt.CompoundTag tag = existing.copyTag();
+                                net.minecraft.nbt.CompoundTag pbv = tag.contains("PublicBukkitValues")
+                                        ? tag.getCompound("PublicBukkitValues")
+                                        : new net.minecraft.nbt.CompoundTag();
+                                pbv.putString("customdamagesystem:registry_id", registryId);
+                                tag.put("PublicBukkitValues", pbv);
+                                stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                                        net.minecraft.world.item.component.CustomData.of(tag));
                             }
                             // DisplayName 복원 — JSON Component 파싱 (Adventure 호환)
                             if (displayName != null) {
@@ -359,6 +418,15 @@ public final class NetworkHandler {
             // registryId 캐시 저장 (클라이언트 → 서버 전송 시 사용)
             if (registryId != null) {
                 ClientAccessoryRegistryCache.put(itemId, cmd, registryId);
+            }
+
+            // 툴팁 레지스트리에 등록 (AngongGui 커스텀 툴팁용)
+            try {
+                Class<?> registry = Class.forName("org.zeripe.angonggui.client.tooltip.ItemTooltipRegistry");
+                registry.getMethod("register", JsonObject.class).invoke(null, e);
+                LOGGER.info("[CDS-Client] 툴팁 레지스트리 등록 성공: {}", registryId);
+            } catch (Exception ex) {
+                LOGGER.error("[CDS-Client] 툴팁 레지스트리 등록 실패: {}", ex.toString());
             }
         }
     }

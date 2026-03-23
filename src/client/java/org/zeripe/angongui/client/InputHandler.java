@@ -40,10 +40,16 @@ public final class InputHandler {
             long window = client.getWindow().getWindow();
             boolean ctrlDown = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_CONTROL)
                     || InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_CONTROL);
+
+            // 전투/생활 모드 전환: damageSystem이 비활성화면 전투모드 차단
             boolean graveDown = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_GRAVE_ACCENT);
             boolean modeToggle = ctrlDown && graveDown;
-            if (modeToggle && !wasModeToggleDown) {
+            if (modeToggle && !wasModeToggleDown && ClientState.get().isDamageSystemEnabled()) {
                 CombatModeState.toggle();
+            }
+            // damageSystem 비활성화 시 전투모드에 있었다면 생활모드로 강제 복귀
+            if (!ClientState.get().isDamageSystemEnabled() && CombatModeState.isCombatMode()) {
+                CombatModeState.reset();
             }
             wasModeToggleDown = modeToggle;
 

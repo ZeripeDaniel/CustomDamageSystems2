@@ -42,6 +42,12 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // MySQL (jar-in-jar로 모드에 포함)
+    implementation "com.zaxxer:HikariCP:5.1.0"
+    include "com.zaxxer:HikariCP:5.1.0"
+    implementation "com.mysql:mysql-connector-j:9.1.0"
+    include "com.mysql:mysql-connector-j:9.1.0"
 }
 
 processResources {

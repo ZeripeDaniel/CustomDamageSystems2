@@ -1,6 +1,7 @@
 package org.zeripe.angongserverside.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -21,7 +22,9 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.item.equipment.Equippable;
 import org.slf4j.Logger;
+import org.zeripe.angongserverside.combat.StatManager;
 import org.zeripe.angongserverside.config.EquipmentStatConfig;
+import org.zeripe.angongserverside.economy.EconomyProvider;
 import org.zeripe.customdamagesystem.item.AccessoryDefinition;
 import org.zeripe.customdamagesystem.item.AccessoryRegistry;
 import org.zeripe.customdamagesystem.item.AccessoryType;
@@ -56,22 +59,35 @@ public final class ZcdsCommand {
 
     private final EquipmentStatConfig config;
     private final Logger logger;
+    private StatManager statManager;
+    private EconomyProvider economyProvider;
 
     public ZcdsCommand(EquipmentStatConfig config, Logger logger) {
         this.config = config;
         this.logger = logger;
     }
 
+    public void setStatManager(StatManager statManager) {
+        this.statManager = statManager;
+    }
+
+    public void setEconomyProvider(EconomyProvider economyProvider) {
+        this.economyProvider = economyProvider;
+    }
+
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("zcds")
                 .requires(src -> src.hasPermission(2))
 
-                // /zcds register <type> <id>
+                // /zcds register <type> <id> [rarity]
                 .then(Commands.literal("register")
                         .then(Commands.argument("type", StringArgumentType.word())
                                 .suggests(typeSuggestions())
                                 .then(Commands.argument("id", StringArgumentType.word())
-                                        .executes(this::executeRegister))))
+                                        .executes(this::executeRegister)
+                                        .then(Commands.argument("rarity", StringArgumentType.word())
+                                                .suggests(raritySuggestions())
+                                                .executes(this::executeRegister)))))
 
                 // /zcds unregister <id>
                 .then(Commands.literal("unregister")
@@ -89,6 +105,27 @@ public final class ZcdsCommand {
                                 .then(Commands.argument("id", StringArgumentType.word())
                                         .suggests(registryIdSuggestions())
                                         .executes(this::executeGive))))
+
+                // /zcds money set <player> <amount>
+                // /zcds money add <player> <amount>
+                // /zcds money remove <player> <amount>
+                // /zcds money check <player>
+                .then(Commands.literal("money")
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("amount", LongArgumentType.longArg(0))
+                                                .executes(this::executeMoneySet))))
+                        .then(Commands.literal("add")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("amount", LongArgumentType.longArg(1))
+                                                .executes(this::executeMoneyAdd))))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("amount", LongArgumentType.longArg(1))
+                                                .executes(this::executeMoneyRemove))))
+                        .then(Commands.literal("check")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(this::executeMoneyCheck))))
         );
     }
 
@@ -164,10 +201,25 @@ public final class ZcdsCommand {
             logger.warn("[ZcdsCommand] 아이템 SNBT 직렬화 실패: {}", e.getMessage());
         }
 
+        // Parse rarity (optional)
+        String rarity = "NORMAL";
+        try {
+            String rarityArg = StringArgumentType.getString(ctx, "rarity").toUpperCase();
+            if (List.of("NORMAL", "RARE", "EPIC", "UNIQUE", "LEGENDARY").contains(rarityArg)) {
+                rarity = rarityArg;
+            } else {
+                src.sendFailure(Component.literal("§c올바르지 않은 등급: " + rarityArg));
+                return 0;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // rarity 미입력 → NORMAL 기본값
+        }
+
         // Create entry with default stats
         EquipmentStatConfig.ItemEntry entry = createDefaultEntry(type, registryId, itemId,
                 customModelData, displayName);
         entry.itemData = itemData;
+        entry.rarity = rarity;
 
         config.addEntry(entry);
 
@@ -182,7 +234,9 @@ public final class ZcdsCommand {
             config.save();
             src.sendSuccess(() -> Component.literal("§a아이템 등록 완료!"), true);
             src.sendSuccess(() -> Component.literal("§7ID: §f" + registryId), false);
+            final String finalRarity = rarity;
             src.sendSuccess(() -> Component.literal("§7타입: §f" + type.name()), false);
+            src.sendSuccess(() -> Component.literal("§7등급: §f" + finalRarity), false);
             src.sendSuccess(() -> Component.literal("§7아이템: §f" + itemId), false);
             if (customModelData != 0) {
                 int cmd = customModelData;
@@ -337,6 +391,79 @@ public final class ZcdsCommand {
     }
 
     // ═══════════════════════════════════════
+    //  money
+    // ═══════════════════════════════════════
+
+    private int executeMoneySet(CommandContext<CommandSourceStack> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        if (economyProvider == null) {
+            ctx.getSource().sendFailure(Component.literal("§c이코노미 시스템이 초기화되지 않았습니다."));
+            return 0;
+        }
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        long amount = LongArgumentType.getLong(ctx, "amount");
+        economyProvider.setBalance(target.getUUID(), amount);
+        if (statManager != null) {
+            var data = statManager.getData(target.getUUID());
+            if (data != null) statManager.sendEconomy(target, data);
+        }
+        ctx.getSource().sendSuccess(() -> Component.literal("§a" + target.getName().getString() + "의 골드를 §f" + amount + "§a로 설정"), true);
+        return 1;
+    }
+
+    private int executeMoneyAdd(CommandContext<CommandSourceStack> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        if (economyProvider == null) {
+            ctx.getSource().sendFailure(Component.literal("§c이코노미 시스템이 초기화되지 않았습니다."));
+            return 0;
+        }
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        long amount = LongArgumentType.getLong(ctx, "amount");
+        boolean ok = economyProvider.deposit(target.getUUID(), amount);
+        if (!ok) {
+            ctx.getSource().sendFailure(Component.literal("§c골드 추가 실패"));
+            return 0;
+        }
+        if (statManager != null) {
+            var data = statManager.getData(target.getUUID());
+            if (data != null) statManager.sendEconomy(target, data);
+        }
+        long balance = economyProvider.getBalance(target.getUUID());
+        ctx.getSource().sendSuccess(() -> Component.literal("§a" + target.getName().getString() + "에게 §f" + amount + "§a 골드 지급 (잔액: " + balance + ")"), true);
+        return 1;
+    }
+
+    private int executeMoneyRemove(CommandContext<CommandSourceStack> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        if (economyProvider == null) {
+            ctx.getSource().sendFailure(Component.literal("§c이코노미 시스템이 초기화되지 않았습니다."));
+            return 0;
+        }
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        long amount = LongArgumentType.getLong(ctx, "amount");
+        boolean ok = economyProvider.withdraw(target.getUUID(), amount);
+        if (!ok) {
+            ctx.getSource().sendFailure(Component.literal("§c골드가 부족합니다."));
+            return 0;
+        }
+        if (statManager != null) {
+            var data = statManager.getData(target.getUUID());
+            if (data != null) statManager.sendEconomy(target, data);
+        }
+        long balance = economyProvider.getBalance(target.getUUID());
+        ctx.getSource().sendSuccess(() -> Component.literal("§a" + target.getName().getString() + "에게서 §f" + amount + "§a 골드 차감 (잔액: " + balance + ")"), true);
+        return 1;
+    }
+
+    private int executeMoneyCheck(CommandContext<CommandSourceStack> ctx) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        if (economyProvider == null) {
+            ctx.getSource().sendFailure(Component.literal("§c이코노미 시스템이 초기화되지 않았습니다."));
+            return 0;
+        }
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        long balance = economyProvider.getBalance(target.getUUID());
+        ctx.getSource().sendSuccess(() -> Component.literal("§e" + target.getName().getString() + "§7의 골드: §f" + balance), false);
+        return 1;
+    }
+
+    // ═══════════════════════════════════════
     //  Helpers
     // ═══════════════════════════════════════
 
@@ -468,6 +595,19 @@ public final class ZcdsCommand {
                 String name = t.name().toLowerCase();
                 if (name.startsWith(builder.getRemainingLowerCase())) {
                     builder.suggest(name);
+                }
+            }
+            return builder.buildFuture();
+        };
+    }
+
+    private static final List<String> RARITIES = List.of("normal", "rare", "epic", "unique", "legendary");
+
+    private SuggestionProvider<CommandSourceStack> raritySuggestions() {
+        return (ctx, builder) -> {
+            for (String r : RARITIES) {
+                if (r.startsWith(builder.getRemainingLowerCase())) {
+                    builder.suggest(r);
                 }
             }
             return builder.buildFuture();

@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.zeripe.angongserverside.config.EquipmentStatConfig;
 import org.zeripe.angongserverside.network.ServerNetworkHandler;
 import org.zeripe.angongserverside.stats.PlayerStatData;
-import org.zeripe.angongserverside.stats.StatStorage;
+import org.zeripe.angongserverside.storage.PlayerDataStorage;
 import org.zeripe.customdamagesystem.item.AccessoryDataManager;
 import org.zeripe.customdamagesystem.item.AccessoryDefinition;
 import org.zeripe.customdamagesystem.item.AccessoryInventory;
@@ -27,14 +27,16 @@ public class StatManager {
     private final Map<UUID, PlayerStatData> playerData = new ConcurrentHashMap<>();
     private final Map<UUID, String> equipmentSnapshot = new ConcurrentHashMap<>();
 
-    private final StatStorage storage;
+    private final PlayerDataStorage storage;
     private final StatCalculationEngine calcEngine;
     private final BuffSystem buffSystem;
     private final EquipmentStatConfig equipmentStatConfig;
     private final CustomHealthManager healthManager;
     private final Logger logger;
+    private boolean includeVanillaArmorForPlayerDefense = true;
+    private double vanillaArmorDefenseMultiplier = 10.0;
 
-    public StatManager(StatStorage storage,
+    public StatManager(PlayerDataStorage storage,
                        StatCalculationEngine calcEngine,
                        BuffSystem buffSystem,
                        EquipmentStatConfig equipmentStatConfig,
@@ -49,11 +51,17 @@ public class StatManager {
         buffSystem.setOnBuffChanged(this::onBuffChanged);
     }
 
+    /** 바닐라 방어력 포함 설정 주입 */
+    public void setVanillaArmorPolicy(boolean include, double multiplier) {
+        this.includeVanillaArmorForPlayerDefense = include;
+        this.vanillaArmorDefenseMultiplier = multiplier > 0 ? multiplier : 10.0;
+    }
+
     public void onPlayerJoin(ServerPlayer player) {
         UUID uuid = player.getUUID();
         String name = player.getName().getString();
 
-        PlayerStatData data = storage.load(uuid.toString(), name);
+        PlayerStatData data = storage.loadStats(uuid.toString(), name);
         data.name = name;
         applyEquipmentProfile(player, data);
 
@@ -78,7 +86,7 @@ public class StatManager {
         PlayerStatData data = playerData.remove(uuid);
         if (data != null) {
             data.currentHp = healthManager.getCurrentHp(uuid);
-            storage.save(data);
+            storage.saveStats(data);
         }
         equipmentSnapshot.remove(uuid);
         healthManager.removePlayer(uuid);
@@ -138,7 +146,7 @@ public class StatManager {
         }
 
         recalculateAndSync(player, data);
-        storage.save(data);
+        storage.saveStats(data);
     }
 
     private void recalculateAndSync(ServerPlayer player, PlayerStatData data) {
@@ -167,7 +175,7 @@ public class StatManager {
         PlayerStatData data = playerData.get(player.getUUID());
         if (data == null) return;
         data.gold = Math.max(0, amount);
-        storage.save(data);
+        storage.saveStats(data);
         sendEconomy(player, data);
     }
 
@@ -175,7 +183,7 @@ public class StatManager {
         PlayerStatData data = playerData.get(player.getUUID());
         if (data == null) return false;
         data.gold = Math.max(0, data.gold + amount);
-        storage.save(data);
+        storage.saveStats(data);
         sendEconomy(player, data);
         return true;
     }
@@ -184,8 +192,32 @@ public class StatManager {
         PlayerStatData data = playerData.get(player.getUUID());
         if (data == null || data.gold < amount) return false;
         data.gold -= amount;
-        storage.save(data);
+        storage.saveStats(data);
         sendEconomy(player, data);
+        return true;
+    }
+
+    // UUID 기반 골드 조작 (EconomyProvider에서 호출)
+    public void setGoldByUuid(UUID uuid, long amount) {
+        PlayerStatData data = playerData.get(uuid);
+        if (data == null) return;
+        data.gold = Math.max(0, amount);
+        storage.saveStats(data);
+    }
+
+    public boolean addGoldByUuid(UUID uuid, long amount) {
+        PlayerStatData data = playerData.get(uuid);
+        if (data == null) return false;
+        data.gold = Math.max(0, data.gold + amount);
+        storage.saveStats(data);
+        return true;
+    }
+
+    public boolean removeGoldByUuid(UUID uuid, long amount) {
+        PlayerStatData data = playerData.get(uuid);
+        if (data == null || data.gold < amount) return false;
+        data.gold -= amount;
+        storage.saveStats(data);
         return true;
     }
 
@@ -361,6 +393,14 @@ public class StatManager {
 
         // ── Accessory stats ──
         applyAccessories(player.getUUID(), data);
+
+        // 바닐라 방어력 포함 (overrideVanillaArmor가 아닌 경우에만)
+        if (includeVanillaArmorForPlayerDefense && !data.overrideVanillaArmor) {
+            AttributeInstance armorAttr = player.getAttribute(Attributes.ARMOR);
+            if (armorAttr != null && armorAttr.getValue() > 0) {
+                data.equipDefense += (int) Math.round(armorAttr.getValue() * vanillaArmorDefenseMultiplier);
+            }
+        }
     }
 
     private void applyAccessories(UUID uuid, PlayerStatData data) {
@@ -417,7 +457,7 @@ public class StatManager {
         for (var entry : playerData.entrySet()) {
             PlayerStatData data = entry.getValue();
             data.currentHp = healthManager.getCurrentHp(entry.getKey());
-            storage.save(data);
+            storage.saveStats(data);
         }
         logger.info("[StatManager] 전체 스탯 저장 완료 ({}명)", playerData.size());
     }

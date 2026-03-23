@@ -15,6 +15,7 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.zeripe.angongserverside.config.MonsterAttackGroupConfig;
+import org.zeripe.angongserverside.party.PartyManager;
 import org.zeripe.angongserverside.stats.PlayerStatData;
 
 import java.util.Map;
@@ -33,6 +34,10 @@ public class ServerDamageHandler {
     private final HitCooldownRegistry cooldownRegistry = HitCooldownRegistry.get();
     private final Map<Integer, Map<String, Long>> cooldownByVictimAndKey = new ConcurrentHashMap<>();
     private final Set<Integer> passthroughDamage = ConcurrentHashMap.newKeySet();
+    private PartyManager partyManager;
+    private boolean partyFriendlyFire = false;
+    /** 환경 데미지(불, 용암 등) 쿨다운 틱 - 바닐라와 동일하게 10틱(0.5초) */
+    private static final int ENVIRONMENTAL_DAMAGE_COOLDOWN_TICKS = 10;
 
     public ServerDamageHandler(CustomHealthManager healthManager,
                                StatCalculationEngine calcEngine,
@@ -54,6 +59,14 @@ public class ServerDamageHandler {
 
     private long lastCleanupTick = 0;
     private static final long CLEANUP_INTERVAL_TICKS = 1200L; // 60초마다
+
+    public void setPartyManager(PartyManager partyManager) {
+        this.partyManager = partyManager;
+    }
+
+    public void setPartyFriendlyFire(boolean value) {
+        this.partyFriendlyFire = value;
+    }
 
     public void register() {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(this::onAllowDamage);
@@ -77,14 +90,22 @@ public class ServerDamageHandler {
 
         ServerPlayer attacker = resolveAttacker(source);
         PlayerStatData attackerData = attacker != null ? statManager.getData(attacker.getUUID()) : null;
-        int cooldownTicks = cooldownRegistry.resolve(
-                source,
-                attacker,
-                attackerData != null ? attackerData.equipAttackSpeed : 0.0,
-                attackerData != null && attackerData.overrideMainhandVanillaAttributes
-        );
+        // 환경 데미지(불, 용암 등)는 별도 쿨다운 사용
+        boolean isEnvironmental = source.getEntity() == null;
+        int cooldownTicks;
+        if (!isEnvironmental) {
+            cooldownTicks = cooldownRegistry.resolve(
+                    source,
+                    attacker,
+                    attackerData != null ? attackerData.equipAttackSpeed : 0.0,
+                    attackerData != null && attackerData.overrideMainhandVanillaAttributes
+            );
+        } else {
+            cooldownTicks = ENVIRONMENTAL_DAMAGE_COOLDOWN_TICKS;
+        }
         String cooldownKey = resolveCooldownKey(source, attacker);
-        if (source.getEntity() != null && isHitOnCooldown(entity, cooldownKey)) return false;
+        // 쿨다운 체크 (엔티티 + 환경 데미지 모두 적용)
+        if (isHitOnCooldown(entity, cooldownKey)) return false;
         if (entity instanceof ServerPlayer && source.is(DamageTypes.STARVE)) return false;
 
         if (entity instanceof ServerPlayer victim) {
@@ -96,6 +117,12 @@ public class ServerDamageHandler {
     private boolean handlePlayerVictim(ServerPlayer victim, DamageSource source, float amount, ServerPlayer attacker, PlayerStatData attackerData, int cooldownTicks, String cooldownKey) {
         PlayerStatData victimData = statManager.getData(victim.getUUID());
         if (victimData == null) return true;
+
+        // 파티원 간 PvP 차단
+        if (attacker != null && !partyFriendlyFire && partyManager != null
+                && partyManager.areInSameParty(attacker.getUUID(), victim.getUUID())) {
+            return false;
+        }
 
         if (source.is(DamageTypes.FELL_OUT_OF_WORLD)) {
             healthManager.applyDamage(victim, healthManager.getMaxHp(victim.getUUID()));
@@ -109,10 +136,8 @@ public class ServerDamageHandler {
         StatCalculationEngine.DamageResult result;
         if (attacker != null) {
             if (attackerData == null) return false;
+            // 바닐라 방어력은 StatManager.applyEquipmentProfile()에서 이미 포함됨
             int defenderDefense = victimData.defense;
-            if (includeVanillaArmorForPlayerDefense && !victimData.overrideVanillaArmor) {
-                defenderDefense += (int) Math.round(victim.getArmorValue() * vanillaArmorDefenseMultiplier);
-            }
             double extraFlat;
             double chargeMultiplier;
             if (isProjectileHit) {
@@ -233,7 +258,7 @@ public class ServerDamageHandler {
     }
 
     private void applyCooldown(LivingEntity victim, DamageSource source, String cooldownKey, int cooldownTicks) {
-        if (source.getEntity() == null || cooldownTicks <= 0) return;
+        if (cooldownTicks <= 0 || cooldownKey == null) return;
         long now = victim.level().getGameTime();
         cooldownByVictimAndKey
                 .computeIfAbsent(victim.getId(), ignored -> new ConcurrentHashMap<>())

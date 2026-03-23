@@ -44,6 +44,8 @@ public final class CombatQuickslotRenderer {
         HudRenderCallback.EVENT.register((g, tickDelta) -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
+            // 커스텀 HUD 비활성화 시 전투 퀵슬롯 렌더링하지 않음
+            if (!ClientState.get().isCustomHudEnabled()) return;
             render(g, mc);
         });
     }

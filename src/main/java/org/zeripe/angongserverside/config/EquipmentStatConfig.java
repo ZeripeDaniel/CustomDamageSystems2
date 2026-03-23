@@ -123,6 +123,8 @@ public final class EquipmentStatConfig {
         public String displayName;
         /** 원본 아이템 전체 데이터 (SNBT). null이면 기본 아이템 생성 */
         public String itemData;
+        /** 아이템 등급: NORMAL, RARE, EPIC, UNIQUE, LEGENDARY */
+        public String rarity = "NORMAL";
 
         public List<String> slots = new ArrayList<>();
         public double itemLevel = 0.0;

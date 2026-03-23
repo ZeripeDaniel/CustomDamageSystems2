@@ -8,18 +8,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.storage.LevelResource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.zeripe.angongserverside.storage.PlayerDataStorage;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,19 +24,13 @@ public final class AccessoryDataManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("AccessoryDataManager");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<UUID, AccessoryInventory> inventories = new ConcurrentHashMap<>();
-    private static Path storagePath;
+    private static PlayerDataStorage storage;
 
     private AccessoryDataManager() {}
 
-    public static void init(MinecraftServer server) {
-        storagePath = server.getWorldPath(LevelResource.ROOT)
-                .resolve("customdamagesystem").resolve("accessorydata");
-        try {
-            Files.createDirectories(storagePath);
-            LOGGER.info("[AccessoryDataManager] 저장 경로 초기화: {}", storagePath);
-        } catch (IOException e) {
-            LOGGER.error("[AccessoryDataManager] 저장 경로 생성 실패: {}", e.getMessage());
-        }
+    public static void init(PlayerDataStorage playerDataStorage) {
+        storage = playerDataStorage;
+        LOGGER.info("[AccessoryDataManager] Storage 초기화 완료");
     }
 
     public static AccessoryInventory getOrLoad(UUID uuid) {
@@ -53,8 +43,8 @@ public final class AccessoryDataManager {
             LOGGER.warn("[AccessoryDataManager] save 호출됨 - 인벤토리 없음: {}", uuid);
             return;
         }
-        if (storagePath == null) {
-            LOGGER.warn("[AccessoryDataManager] save 호출됨 - storagePath 미초기화: {}", uuid);
+        if (storage == null) {
+            LOGGER.warn("[AccessoryDataManager] save 호출됨 - storage 미초기화: {}", uuid);
             return;
         }
 
@@ -73,13 +63,8 @@ public final class AccessoryDataManager {
         }
         obj.add("slots", slots);
 
-        Path file = storagePath.resolve(uuid + ".json");
-        try {
-            Files.writeString(file, GSON.toJson(obj));
-            LOGGER.debug("[AccessoryDataManager] 저장 완료 ({}개 아이템): {} -> {}", nonEmpty, uuid, file);
-        } catch (IOException e) {
-            LOGGER.error("[AccessoryDataManager] 저장 실패: {} - {}", uuid, e.getMessage());
-        }
+        storage.saveAccessoryJson(uuid, GSON.toJson(obj));
+        LOGGER.debug("[AccessoryDataManager] 저장 완료 ({}개 아이템): {}", nonEmpty, uuid);
     }
 
     public static void remove(UUID uuid) {
@@ -97,24 +82,23 @@ public final class AccessoryDataManager {
         LOGGER.info("[AccessoryDataManager] 종료 - {}명 저장 중", inventories.size());
         saveAll();
         inventories.clear();
-        storagePath = null;
+        storage = null;
     }
 
     private static AccessoryInventory load(UUID uuid) {
         AccessoryInventory inv = new AccessoryInventory();
-        if (storagePath == null) {
-            LOGGER.warn("[AccessoryDataManager] load 호출됨 - storagePath 미초기화: {}", uuid);
+        if (storage == null) {
+            LOGGER.warn("[AccessoryDataManager] load 호출됨 - storage 미초기화: {}", uuid);
             return inv;
         }
 
-        Path file = storagePath.resolve(uuid + ".json");
-        if (!Files.exists(file)) {
-            LOGGER.debug("[AccessoryDataManager] 저장 파일 없음 (새 플레이어): {}", uuid);
+        String content = storage.loadAccessoryJson(uuid);
+        if (content == null) {
+            LOGGER.debug("[AccessoryDataManager] 저장 데이터 없음 (새 플레이어): {}", uuid);
             return inv;
         }
 
         try {
-            String content = Files.readString(file);
             JsonObject obj = JsonParser.parseString(content).getAsJsonObject();
             JsonArray slots = obj.getAsJsonArray("slots");
             int loaded = 0;

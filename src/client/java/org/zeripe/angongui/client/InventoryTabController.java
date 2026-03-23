@@ -20,6 +20,8 @@ public final class InventoryTabController {
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (screen == null || screen.getClass() != InventoryScreen.class) return;
+            // 스탯 시스템 비활성화 시 악세서리 탭 숨김
+            if (!ClientState.get().isStatSystemEnabled()) return;
 
             int left = (screen.width - INV_W) / 2;
             int top = (screen.height - INV_H) / 2;

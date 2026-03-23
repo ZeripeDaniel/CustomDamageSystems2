@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CustomDamageSystem - Admin Panel</title>
+<style>
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #222536;
+  --bg-hover: #2a2e42;
+  --bg-input: #181b25;
+  --border: #2e3348;
+  --text-primary: #e4e6f0;
+  --text-secondary: #8b8fa3;
+  --text-muted: #5c6078;
+  --accent: #6c5ce7;
+  --accent-hover: #7f71f0;
+  --accent-bg: rgba(108,92,231,0.12);
+  --success: #00b894;
+  --success-bg: rgba(0,184,148,0.12);
+  --warning: #fdcb6e;
+  --warning-bg: rgba(253,203,110,0.12);
+  --danger: #e17055;
+  --danger-bg: rgba(225,112,85,0.12);
+  --info: #74b9ff;
+  --info-bg: rgba(116,185,255,0.12);
+  --gold: #f9ca24;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: 0.2s ease;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+a { color: var(--accent); text-decoration:none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--bg-primary); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
+
+/* Login Screen */
+#loginScreen {
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh; padding:20px;
+}
+.login-box {
+  background:var(--bg-secondary); border:1px solid var(--border);
+  border-radius:var(--radius); padding:40px; width:100%; max-width:400px;
+  box-shadow:var(--shadow); text-align:center;
+}
+.login-box h1 { font-size:1.5rem; margin-bottom:8px; }
+.login-box .subtitle { color:var(--text-secondary); margin-bottom:30px; font-size:0.9rem; }
+.login-box .logo { font-size:2.5rem; margin-bottom:16px; }
+
+/* Main Layout */
+#mainApp { display:none; min-height:100vh; }
+.sidebar {
+  position:fixed; top:0; left:0; width:240px; height:100vh;
+  background:var(--bg-secondary); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:100;
+  transition: transform var(--transition);
+}
+.sidebar-header {
+  padding:20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+.sidebar-header .logo { font-size:1.8rem; }
+.sidebar-header .title { font-size:1rem; font-weight:600; line-height:1.3; }
+.sidebar-header .version { font-size:0.75rem; color:var(--text-muted); }
+
+.nav-menu { flex:1; padding:12px; overflow-y:auto; }
+.nav-item {
+  display:flex; align-items:center; gap:12px; padding:10px 14px;
+  border-radius:var(--radius-sm); cursor:pointer; color:var(--text-secondary);
+  transition: all var(--transition); margin-bottom:2px; font-size:0.9rem;
+}
+.nav-item:hover { background:var(--bg-hover); color:var(--text-primary); }
+.nav-item.active { background:var(--accent-bg); color:var(--accent); font-weight:600; }
+.nav-item .icon { font-size:1.1rem; width:22px; text-align:center; }
+
+.sidebar-footer {
+  padding:16px; border-top:1px solid var(--border);
+  display:flex; flex-direction:column; gap:8px;
+}
+.lang-toggle {
+  display:flex; background:var(--bg-card); border-radius:var(--radius-sm);
+  overflow:hidden; border:1px solid var(--border);
+}
+.lang-btn {
+  flex:1; padding:6px; text-align:center; cursor:pointer;
+  font-size:0.8rem; transition: all var(--transition); color:var(--text-secondary);
+}
+.lang-btn.active { background:var(--accent); color:#fff; font-weight:600; }
+.logout-btn {
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:8px; border-radius:var(--radius-sm); cursor:pointer;
+  color:var(--danger); font-size:0.85rem; transition: all var(--transition);
+}
+.logout-btn:hover { background:var(--danger-bg); }
+
+.main-content {
+  margin-left:240px; padding:24px; min-height:100vh;
+}
+.page-header {
+  margin-bottom:24px; display:flex; align-items:center; justify-content:space-between;
+}
+.page-header h2 { font-size:1.5rem; font-weight:600; }
+.page-header .refresh-btn {
+  padding:8px 16px; background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius-sm); color:var(--text-secondary); cursor:pointer;
+  font-size:0.85rem; transition: all var(--transition);
+}
+.page-header .refresh-btn:hover { background:var(--bg-hover); color:var(--text-primary); }
+
+/* Cards Grid */
+.cards-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+  gap:16px; margin-bottom:24px;
+}
+.stat-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius); padding:20px; transition: all var(--transition);
+}
+.stat-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:var(--shadow); }
+.stat-card .label { font-size:0.8rem; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
+.stat-card .value { font-size:1.8rem; font-weight:700; }
+.stat-card .icon-wrap { font-size:1.5rem; margin-bottom:8px; }
+.stat-card.accent .value { color:var(--accent); }
+.stat-card.success .value { color:var(--success); }
+.stat-card.warning .value { color:var(--warning); }
+.stat-card.info .value { color:var(--info); }
+
+/* Table */
+.table-container {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+}
+.table-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; border-bottom:1px solid var(--border);
+}
+.table-header h3 { font-size:1rem; font-weight:600; }
+.search-box {
+  display:flex; align-items:center; gap:8px; background:var(--bg-input);
+  border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px;
+}
+.search-box input {
+  background:none; border:none; color:var(--text-primary); outline:none;
+  font-size:0.85rem; width:180px;
+}
+.search-box input::placeholder { color:var(--text-muted); }
+
+table { width:100%; border-collapse:collapse; }
+thead th {
+  text-align:left; padding:12px 16px; font-size:0.75rem;
+  color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;
+  border-bottom:1px solid var(--border); font-weight:600;
+}
+tbody td {
+  padding:12px 16px; font-size:0.85rem; border-bottom:1px solid var(--border);
+}
+tbody tr { transition:background var(--transition); cursor:pointer; }
+tbody tr:hover { background:var(--bg-hover); }
+tbody tr:last-child td { border-bottom:none; }
+.gold-badge {
+  display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+  background:rgba(249,202,36,0.1); border-radius:4px; color:var(--gold); font-weight:600;
+}
+.online-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+.online-dot.on { background:var(--success); box-shadow:0 0 6px var(--success); }
+.online-dot.off { background:var(--text-muted); }
+
+/* Forms & Inputs */
+input, select, textarea {
+  background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary);
+  border-radius:var(--radius-sm); padding:10px 14px; font-size:0.9rem;
+  outline:none; transition: border-color var(--transition); width:100%;
+}
+input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+textarea { resize:vertical; min-height:100px; font-family:monospace; }
+
+.btn {
+  padding:10px 20px; border:none; border-radius:var(--radius-sm); cursor:pointer;
+  font-size:0.9rem; font-weight:600; transition: all var(--transition);
+  display:inline-flex; align-items:center; gap:8px;
+}
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent-hover); }
+.btn-success { background:var(--success); color:#fff; }
+.btn-success:hover { opacity:0.9; }
+.btn-danger { background:var(--danger); color:#fff; }
+.btn-danger:hover { opacity:0.9; }
+.btn-ghost {
+  background:transparent; color:var(--text-secondary); border:1px solid var(--border);
+}
+.btn-ghost:hover { background:var(--bg-hover); color:var(--text-primary); }
+
+/* Config Page */
+.config-section {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius); margin-bottom:16px; overflow:hidden;
+}
+.config-section-header {
+  padding:16px 20px; border-bottom:1px solid var(--border);
+  cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+  transition: background var(--transition);
+}
+.config-section-header:hover { background:var(--bg-hover); }
+.config-section-header h3 { font-size:0.95rem; font-weight:600; }
+.config-section-header .arrow { transition:transform var(--transition); color:var(--text-muted); }
+.config-section-header.open .arrow { transform:rotate(180deg); }
+.config-section-body { padding:20px; display:none; }
+.config-section-body.open { display:block; }
+.config-row {
+  display:grid; grid-template-columns:200px 1fr; align-items:center;
+  gap:16px; padding:8px 0;
+}
+.config-row label { font-size:0.85rem; color:var(--text-secondary); }
+.config-row input[type="checkbox"] { width:auto; }
+.config-row .hint { grid-column:2; font-size:0.75rem; color:var(--text-muted); margin-top:-8px; }
+
+/* Player Detail Modal */
+.modal-overlay {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+  z-index:200; display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition: opacity var(--transition);
+}
+.modal-overlay.active { opacity:1; pointer-events:all; }
+.modal {
+  background:var(--bg-secondary); border:1px solid var(--border);
+  border-radius:var(--radius); width:90%; max-width:700px; max-height:85vh;
+  overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.modal-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:20px 24px; border-bottom:1px solid var(--border); position:sticky;
+  top:0; background:var(--bg-secondary); z-index:1;
+}
+.modal-header h3 { font-size:1.1rem; font-weight:600; }
+.modal-close { cursor:pointer; font-size:1.3rem; color:var(--text-muted); transition:color var(--transition); padding:4px; }
+.modal-close:hover { color:var(--text-primary); }
+.modal-body { padding:24px; }
+.modal-body .stat-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;
+}
+.modal-body .stat-item {
+  display:flex; justify-content:space-between; padding:8px 12px;
+  background:var(--bg-card); border-radius:var(--radius-sm); border:1px solid var(--border);
+}
+.modal-body .stat-item .stat-label { color:var(--text-secondary); font-size:0.85rem; }
+.modal-body .stat-item .stat-value { font-weight:600; font-size:0.9rem; }
+
+.gold-actions {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; margin-top:16px;
+}
+.gold-actions h4 { margin-bottom:12px; font-size:0.95rem; }
+.gold-actions .action-row { display:flex; gap:8px; margin-bottom:8px; }
+.gold-actions input { max-width:200px; }
+
+/* Toast */
+.toast-container { position:fixed; top:20px; right:20px; z-index:300; display:flex; flex-direction:column; gap:8px; }
+.toast {
+  padding:12px 20px; border-radius:var(--radius-sm); font-size:0.85rem;
+  box-shadow:var(--shadow); animation:slideIn 0.3s ease; min-width:250px;
+}
+.toast.success { background:var(--success); color:#fff; }
+.toast.error { background:var(--danger); color:#fff; }
+.toast.info { background:var(--info); color:#fff; }
+@keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+
+/* Loading */
+.loading { display:flex; align-items:center; justify-content:center; padding:40px; color:var(--text-muted); }
+.spinner {
+  width:20px; height:20px; border:2px solid var(--border);
+  border-top-color:var(--accent); border-radius:50%;
+  animation:spin 0.8s linear infinite; margin-right:10px;
+}
+@keyframes spin { to{transform:rotate(360deg);} }
+
+/* Online player list */
+.online-list { margin-top:16px; }
+.online-list .player-chip {
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:20px; padding:4px 12px 4px 8px; margin:4px; font-size:0.8rem;
+  cursor:pointer; transition: all var(--transition);
+}
+.online-list .player-chip:hover { border-color:var(--accent); background:var(--accent-bg); }
+.player-chip img { width:20px; height:20px; border-radius:50%; }
+
+/* Responsive */
+@media(max-width:768px) {
+  .sidebar { transform:translateX(-100%); }
+  .sidebar.open { transform:translateX(0); }
+  .main-content { margin-left:0; }
+  .mobile-toggle { display:block !important; }
+  .config-row { grid-template-columns:1fr; }
+  .modal-body .stat-grid { grid-template-columns:1fr; }
+}
+.mobile-toggle {
+  display:none; position:fixed; top:12px; left:12px; z-index:150;
+  background:var(--bg-secondary); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:8px 12px; cursor:pointer;
+  color:var(--text-primary); font-size:1.2rem;
+}
+
+/* Empty state */
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
+.empty-state .icon { font-size:3rem; margin-bottom:12px; }
+
+/* Items Page */
+.item-actions-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; gap:12px; flex-wrap:wrap;
+}
+.item-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px; margin-bottom:12px;
+  transition: all var(--transition);
+}
+.item-card:hover { border-color:var(--accent); }
+.item-card-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:12px;
+}
+.item-card-header .item-name { font-weight:700; font-size:1rem; }
+.item-card-header .item-id { color:var(--text-muted); font-size:0.8rem; font-family:monospace; }
+.item-card-stats {
+  display:flex; flex-wrap:wrap; gap:8px;
+}
+.item-stat-chip {
+  display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+  background:var(--bg-input); border-radius:4px; font-size:0.8rem;
+  color:var(--text-secondary);
+}
+.item-stat-chip .val { color:var(--text-primary); font-weight:600; }
+.item-card-actions { display:flex; gap:6px; flex-shrink:0; }
+.item-card-actions .btn { padding:6px 12px; font-size:0.8rem; }
+
+/* Item Edit Modal */
+.item-edit-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+}
+.item-edit-field { display:flex; flex-direction:column; gap:4px; }
+.item-edit-field label { font-size:0.8rem; color:var(--text-secondary); }
+.item-edit-field.full-width { grid-column:1/-1; }
+.item-data-area {
+  background:var(--bg-input); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:10px; font-family:monospace;
+  font-size:0.8rem; color:var(--text-primary); resize:vertical;
+  min-height:80px; width:100%; outline:none;
+}
+.item-data-area:focus { border-color:var(--accent); }
+.item-data-actions { display:flex; gap:8px; margin-top:4px; }
+.item-data-actions .btn { padding:4px 10px; font-size:0.75rem; }
+.slot-tags { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.slot-tag {
+  display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+  background:var(--accent-bg); color:var(--accent); border-radius:4px; font-size:0.8rem;
+}
+.slot-tag .remove-slot { cursor:pointer; font-size:0.9rem; }
+.slot-tag .remove-slot:hover { color:var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Login Screen -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo">&#9878;</div>
+    <h1>CustomDamageSystem</h1>
+    <p class="subtitle" data-i18n="loginSubtitle">Admin Panel - Enter password to continue</p>
+    <div style="margin-bottom:16px">
+      <input type="password" id="loginPassword" data-i18n-placeholder="passwordPlaceholder" placeholder="Password" autofocus>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()" data-i18n="loginBtn">Login</button>
+    <div style="margin-top:16px">
+      <div class="lang-toggle">
+        <div class="lang-btn active" onclick="setLang('ko')">한국어</div>
+        <div class="lang-btn" onclick="setLang('en')">English</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="mainApp">
+  <div class="mobile-toggle" onclick="toggleSidebar()">&#9776;</div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">&#9878;</div>
+      <div>
+        <div class="title">CDS Admin</div>
+        <div class="version">CustomDamageSystem</div>
+      </div>
+    </div>
+    <div class="nav-menu">
+      <div class="nav-item active" onclick="navigateTo('dashboard')" data-page="dashboard">
+        <span class="icon">&#9673;</span><span data-i18n="navDashboard">Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="navigateTo('players')" data-page="players">
+        <span class="icon">&#9823;</span><span data-i18n="navPlayers">Players</span>
+      </div>
+      <div class="nav-item" onclick="navigateTo('items')" data-page="items">
+        <span class="icon">&#9876;</span><span data-i18n="navItems">Items</span>
+      </div>
+      <div class="nav-item" onclick="navigateTo('quests')" data-page="quests">
+        <span class="icon">&#9733;</span><span data-i18n="navQuests">Quests</span>
+      </div>
+      <div class="nav-item" onclick="navigateTo('config')" data-page="config">
+        <span class="icon">&#9881;</span><span data-i18n="navConfig">Configuration</span>
+      </div>
+      <div class="nav-item" onclick="navigateTo('additional')" data-page="additional">
+        <span class="icon">&#9881;</span><span data-i18n="navAdditional">Additional</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div id="sidebarSystemStats" style="padding:8px 0;font-size:0.78rem;color:var(--text-muted);display:none">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:0.9rem">&#128187;</span>
+          <span>CPU: <strong id="sysCpu" style="color:var(--text-primary)">-</strong>%</span>
+        </div>
+        <div style="margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+            <span>RAM</span>
+            <span><strong id="sysRamUsed" style="color:var(--text-primary)">-</strong> / <span id="sysRamMax">-</span> MB</span>
+          </div>
+          <div style="background:var(--bg-primary);border-radius:3px;height:6px;overflow:hidden">
+            <div id="sysRamBar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.5s ease"></div>
+          </div>
+        </div>
+      </div>
+      <div class="restart-btn" onclick="confirmRestart()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;color:var(--warning);font-size:0.85rem;transition:all var(--transition);border:1px solid transparent;margin-bottom:6px" onmouseover="this.style.background='var(--warning-bg)';this.style.borderColor='var(--warning)'" onmouseout="this.style.background='';this.style.borderColor='transparent'">
+        <span style="font-size:1rem">&#8635;</span><span data-i18n="restartServer">Restart Server</span>
+      </div>
+      <div class="lang-toggle">
+        <div class="lang-btn" id="langKo" onclick="setLang('ko')">한국어</div>
+        <div class="lang-btn" id="langEn" onclick="setLang('en')">English</div>
+      </div>
+      <div class="logout-btn" onclick="doLogout()">
+        <span>&#10005;</span><span data-i18n="logout">Logout</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- Dashboard Page -->
+    <div id="page-dashboard" class="page">
+      <div class="page-header">
+        <h2 data-i18n="dashboardTitle">Dashboard</h2>
+        <button class="refresh-btn" onclick="loadDashboard()">&#8635; <span data-i18n="refresh">Refresh</span></button>
+      </div>
+      <div class="cards-grid" id="dashboardCards"></div>
+      <div class="table-container">
+        <div class="table-header">
+          <h3 data-i18n="onlinePlayers">Online Players</h3>
+        </div>
+        <div class="online-list" id="onlinePlayerList" style="padding:16px;">
+          <div class="loading"><div class="spinner"></div><span data-i18n="loading">Loading...</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Players Page -->
+    <div id="page-players" class="page" style="display:none">
+      <div class="page-header">
+        <h2 data-i18n="playersTitle">Players</h2>
+        <button class="refresh-btn" onclick="loadPlayers()">&#8635; <span data-i18n="refresh">Refresh</span></button>
+      </div>
+      <div class="table-container">
+        <div class="table-header">
+          <h3 data-i18n="allPlayers">All Players</h3>
+          <div class="search-box">
+            <span>&#128269;</span>
+            <input type="text" id="playerSearch" data-i18n-placeholder="searchPlayer" placeholder="Search players..." oninput="filterPlayers()">
+          </div>
+        </div>
+        <div id="playerTableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="thStatus">Status</th>
+                <th data-i18n="thName">Name</th>
+                <th data-i18n="thLevel">Item Lv</th>
+                <th data-i18n="thGold">Gold</th>
+                <th data-i18n="thAttack">ATK</th>
+                <th data-i18n="thDefense">DEF</th>
+                <th>HP</th>
+              </tr>
+            </thead>
+            <tbody id="playerTableBody">
+              <tr><td colspan="7"><div class="loading"><div class="spinner"></div><span data-i18n="loading">Loading...</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items Page -->
+    <div id="page-items" class="page" style="display:none">
+      <div class="page-header">
+        <h2 data-i18n="itemsTitle">Item Management</h2>
+        <div style="display:flex;gap:8px">
+          <button class="refresh-btn" onclick="loadItems()">&#8635; <span data-i18n="refresh">Refresh</span></button>
+          <button class="btn btn-primary" onclick="openAddItemModal()">&#10010; <span data-i18n="addItem">Add Item</span></button>
+        </div>
+      </div>
+      <div class="item-actions-bar">
+        <div class="search-box">
+          <span>&#128269;</span>
+          <input type="text" id="itemSearch" data-i18n-placeholder="searchItem" placeholder="Search items..." oninput="filterItems()">
+        </div>
+        <div style="color:var(--text-muted);font-size:0.85rem">
+          <span data-i18n="totalItems">Total items</span>: <strong id="itemCount">0</strong>
+        </div>
+      </div>
+      <div id="itemListContainer">
+        <div class="loading"><div class="spinner"></div><span data-i18n="loading">Loading...</span></div>
+      </div>
+    </div>
+
+    <!-- Quests Page -->
+    <div id="page-quests" class="page" style="display:none">
+      <div class="page-header">
+        <h2 data-i18n="questsTitle">Quest Management</h2>
+        <div style="display:flex;gap:8px">
+          <button class="refresh-btn" onclick="loadQuests()">&#8635; <span data-i18n="refresh">Refresh</span></button>
+          <button class="btn btn-primary" onclick="openAddQuestModal()">&#10010; <span data-i18n="addQuest">Add Quest</span></button>
+        </div>
+      </div>
+      <div class="item-actions-bar">
+        <div class="search-box">
+          <span>&#128269;</span>
+          <input type="text" id="questSearch" data-i18n-placeholder="searchQuest" placeholder="Search quests..." oninput="filterQuests()">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="questCategoryFilter" onchange="filterQuests()" style="padding:6px 10px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem">
+            <option value="">ALL</option>
+            <option value="MAIN">MAIN</option>
+            <option value="SUB">SUB</option>
+            <option value="DAILY">DAILY</option>
+            <option value="REPEAT">REPEAT</option>
+            <option value="WEEKLY">WEEKLY</option>
+            <option value="GUILD">GUILD</option>
+            <option value="EVENT">EVENT</option>
+          </select>
+          <span style="color:var(--text-muted);font-size:0.85rem">
+            <span data-i18n="totalQuests">Total quests</span>: <strong id="questCount">0</strong>
+          </span>
+        </div>
+      </div>
+      <div id="questListContainer">
+        <div class="loading"><div class="spinner"></div><span data-i18n="loading">Loading...</span></div>
+      </div>
+    </div>
+
+    <!-- Config Page -->
+    <div id="page-config" class="page" style="display:none">
+      <div class="page-header">
+        <h2 data-i18n="configTitle">Server Configuration</h2>
+        <div style="display:flex;gap:8px">
+          <button class="refresh-btn" onclick="loadConfig()">&#8635; <span data-i18n="refresh">Refresh</span></button>
+          <button class="btn btn-primary" onclick="saveConfig()">&#128190; <span data-i18n="saveConfig">Save</span></button>
+        </div>
+      </div>
+      <div id="configSections"></div>
+    </div>
+
+    <!-- Additional Page -->
+    <div id="page-additional" class="page" style="display:none">
+      <div class="page-header">
+        <h2 data-i18n="additionalTitle">Extension Modules</h2>
+        <div style="display:flex;gap:8px">
+          <button class="refresh-btn" onclick="loadAdditional()">&#8635; <span data-i18n="refresh">Refresh</span></button>
+          <button class="btn btn-primary" onclick="saveAdditional()">&#128190; <span data-i18n="saveConfig">Save</span></button>
+        </div>
+      </div>
+      <div id="additionalSections"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Player Detail Modal -->
+<div class="modal-overlay" id="playerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalPlayerName">Player Details</h3>
+      <span class="modal-close" onclick="closePlayerModal()">&#10005;</span>
+    </div>
+    <div class="modal-body" id="modalBody">
+    </div>
+  </div>
+</div>
+
+<!-- Item Edit Modal -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <h3 id="itemModalTitle">Edit Item</h3>
+      <span class="modal-close" onclick="closeItemModal()">&#10005;</span>
+    </div>
+    <div class="modal-body" id="itemModalBody"></div>
+  </div>
+</div>
+
+<!-- Quest Edit Modal -->
+<div class="modal-overlay" id="questModal">
+  <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <h3 id="questModalTitle">Edit Quest</h3>
+      <span class="modal-close" onclick="closeQuestModal()">&#10005;</span>
+    </div>
+    <div class="modal-body" id="questModalBody"></div>
+  </div>
+</div>
+
+<script>
+// ========== i18n ==========
+const I18N = {
+  ko: {
+    loginSubtitle: '관리자 패널 - 비밀번호를 입력하세요',
+    passwordPlaceholder: '비밀번호',
+    loginBtn: '로그인',
+    navDashboard: '대시보드',
+    navPlayers: '플레이어',
+    navConfig: '설정',
+    navAdditional: '확장 모듈',
+    additionalTitle: '확장 모듈 설정',
+    logout: '로그아웃',
+    dashboardTitle: '대시보드',
+    refresh: '새로고침',
+    onlinePlayers: '온라인 플레이어',
+    loading: '불러오는 중...',
+    playersTitle: '플레이어 관리',
+    allPlayers: '전체 플레이어',
+    searchPlayer: '플레이어 검색...',
+    thStatus: '상태',
+    thName: '이름',
+    thLevel: '아이템 Lv',
+    thGold: '골드',
+    thAttack: '공격',
+    thDefense: '방어',
+    configTitle: '서버 설정',
+    saveConfig: '저장',
+    cardOnline: '온라인 플레이어',
+    cardTotal: '전체 등록 플레이어',
+    cardStorage: '저장 방식',
+    cardEconomy: '이코노미 모드',
+    playerDetail: '플레이어 상세',
+    goldManage: '골드 관리',
+    currentGold: '현재 골드',
+    goldAmount: '금액',
+    goldSet: '설정',
+    goldAdd: '추가',
+    goldRemove: '차감',
+    online: '온라인',
+    offline: '오프라인',
+    noPlayers: '등록된 플레이어가 없습니다',
+    noOnline: '온라인 플레이어가 없습니다',
+    sectSystemToggle: '시스템 토글',
+    sectAngongGui: 'AngongGui 설정',
+    additionalSaved: '확장 모듈 설정이 저장되었습니다. 시스템 토글은 서버 재시작 후 적용됩니다.',
+    additionalSaveFail: '확장 모듈 설정 저장 실패',
+    configSaved: '설정이 저장되었습니다. 서버 재시작 후 적용됩니다.',
+    configSaveFail: '설정 저장 실패',
+    loginFail: '비밀번호가 올바르지 않습니다',
+    goldSuccess: '골드가 변경되었습니다',
+    goldFail: '골드 변경 실패',
+    sectCombat: '전투 설정',
+    sectDisplay: '표시 설정',
+    sectEconomy: '이코노미 설정',
+    sectWebPanel: '웹 패널 설정',
+    sectMySQL: 'MySQL 설정',
+    sectServer: '서버 설정',
+    confirmLogout: '로그아웃 하시겠습니까?',
+    equipStats: '장비 스탯',
+    basicInfo: '기본 정보',
+    navItems: '아이템',
+    itemsTitle: '아이템 관리',
+    addItem: '아이템 추가',
+    searchItem: '아이템 검색...',
+    totalItems: '전체 아이템',
+    editItem: '아이템 수정',
+    addNewItem: '새 아이템 추가',
+    deleteItem: '삭제',
+    deleteConfirm: '이 아이템을 삭제하시겠습니까?',
+    itemSaved: '아이템이 저장되었습니다',
+    itemSaveFail: '아이템 저장 실패',
+    itemDeleted: '아이템이 삭제되었습니다',
+    itemDeleteFail: '아이템 삭제 실패',
+    itemAdded: '아이템이 추가되었습니다',
+    itemAddFail: '아이템 추가 실패',
+    noItems: '등록된 아이템이 없습니다',
+    itemMeta: '메타데이터',
+    itemStats: '전투 스탯',
+    itemDataLabel: '아이템 데이터 (Base64/SNBT)',
+    decodeBtn: '디코드',
+    encodeBtn: '인코드',
+    saveItem: '아이템 저장',
+    slotAdd: '슬롯 추가',
+    decoded: '디코딩됨',
+    encoded: '인코딩됨',
+    navQuests: '퀘스트',
+    questsTitle: '퀘스트 관리',
+    addQuest: '퀘스트 추가',
+    searchQuest: '퀘스트 검색...',
+    totalQuests: '전체 퀘스트',
+    editQuest: '퀘스트 수정',
+    addNewQuest: '새 퀘스트 추가',
+    deleteQuest: '삭제',
+    deleteQuestConfirm: '이 퀘스트를 삭제하시겠습니까?',
+    questSaved: '퀘스트가 저장되었습니다',
+    questSaveFail: '퀘스트 저장 실패',
+    questDeleted: '퀘스트가 삭제되었습니다',
+    questDeleteFail: '퀘스트 삭제 실패',
+    questAdded: '퀘스트가 추가되었습니다',
+    questAddFail: '퀘스트 추가 실패',
+    noQuests: '등록된 퀘스트가 없습니다',
+    questBasicInfo: '기본 정보',
+    questChain: '체인 설정',
+    questFlags: '옵션',
+    questPrereq: '선행 조건',
+    questObjectives: '조건 (Objectives)',
+    questRewards: '보상 (Rewards)',
+    addObjective: '조건 추가',
+    addReward: '보상 추가',
+    saveQuest: '퀘스트 저장',
+    restartServer: '서버 재시작',
+    restartConfirm: '정말 서버를 재시작하시겠습니까?\n모든 플레이어가 접속 해제됩니다.',
+    restartInitiated: '서버 재시작이 시작되었습니다',
+    restartFail: '서버 재시작 실패',
+    restartNotConfigured: 'restartBatPath가 설정되지 않았습니다. 서버 설정에서 BAT 파일 경로를 지정하세요.',
+  },
+  en: {
+    loginSubtitle: 'Admin Panel - Enter password to continue',
+    passwordPlaceholder: 'Password',
+    loginBtn: 'Login',
+    navDashboard: 'Dashboard',
+    navPlayers: 'Players',
+    navConfig: 'Configuration',
+    navAdditional: 'Extensions',
+    additionalTitle: 'Extension Module Settings',
+    logout: 'Logout',
+    dashboardTitle: 'Dashboard',
+    refresh: 'Refresh',
+    onlinePlayers: 'Online Players',
+    loading: 'Loading...',
+    playersTitle: 'Player Management',
+    allPlayers: 'All Players',
+    searchPlayer: 'Search players...',
+    thStatus: 'Status',
+    thName: 'Name',
+    thLevel: 'Item Lv',
+    thGold: 'Gold',
+    thAttack: 'ATK',
+    thDefense: 'DEF',
+    configTitle: 'Server Configuration',
+    saveConfig: 'Save',
+    cardOnline: 'Online Players',
+    cardTotal: 'Total Players',
+    cardStorage: 'Storage Type',
+    cardEconomy: 'Economy Mode',
+    playerDetail: 'Player Details',
+    goldManage: 'Gold Management',
+    currentGold: 'Current Gold',
+    goldAmount: 'Amount',
+    goldSet: 'Set',
+    goldAdd: 'Add',
+    goldRemove: 'Remove',
+    online: 'Online',
+    offline: 'Offline',
+    noPlayers: 'No players registered',
+    noOnline: 'No players online',
+    sectSystemToggle: 'System Toggles',
+    sectAngongGui: 'AngongGui Settings',
+    additionalSaved: 'Extension settings saved. System toggles require server restart.',
+    additionalSaveFail: 'Failed to save extension settings',
+    configSaved: 'Configuration saved. Restart server to apply changes.',
+    configSaveFail: 'Failed to save configuration',
+    loginFail: 'Invalid password',
+    goldSuccess: 'Gold updated successfully',
+    goldFail: 'Failed to update gold',
+    sectCombat: 'Combat Settings',
+    sectDisplay: 'Display Settings',
+    sectEconomy: 'Economy Settings',
+    sectWebPanel: 'Web Panel Settings',
+    sectMySQL: 'MySQL Settings',
+    sectServer: 'Server Settings',
+    confirmLogout: 'Are you sure you want to logout?',
+    equipStats: 'Equipment Stats',
+    basicInfo: 'Basic Info',
+    navItems: 'Items',
+    itemsTitle: 'Item Management',
+    addItem: 'Add Item',
+    searchItem: 'Search items...',
+    totalItems: 'Total items',
+    editItem: 'Edit Item',
+    addNewItem: 'Add New Item',
+    deleteItem: 'Delete',
+    deleteConfirm: 'Are you sure you want to delete this item?',
+    itemSaved: 'Item saved successfully',
+    itemSaveFail: 'Failed to save item',
+    itemDeleted: 'Item deleted successfully',
+    itemDeleteFail: 'Failed to delete item',
+    itemAdded: 'Item added successfully',
+    itemAddFail: 'Failed to add item',
+    noItems: 'No items registered',
+    itemMeta: 'Metadata',
+    itemStats: 'Combat Stats',
+    itemDataLabel: 'Item Data (Base64/SNBT)',
+    decodeBtn: 'Decode',
+    encodeBtn: 'Encode',
+    saveItem: 'Save Item',
+    slotAdd: 'Add Slot',
+    decoded: 'Decoded',
+    encoded: 'Encoded',
+    navQuests: 'Quests',
+    questsTitle: 'Quest Management',
+    addQuest: 'Add Quest',
+    searchQuest: 'Search quests...',
+    totalQuests: 'Total quests',
+    editQuest: 'Edit Quest',
+    addNewQuest: 'Add New Quest',
+    deleteQuest: 'Delete',
+    deleteQuestConfirm: 'Are you sure you want to delete this quest?',
+    questSaved: 'Quest saved successfully',
+    questSaveFail: 'Failed to save quest',
+    questDeleted: 'Quest deleted successfully',
+    questDeleteFail: 'Failed to delete quest',
+    questAdded: 'Quest added successfully',
+    questAddFail: 'Failed to add quest',
+    noQuests: 'No quests registered',
+    questBasicInfo: 'Basic Info',
+    questChain: 'Chain Settings',
+    questFlags: 'Options',
+    questPrereq: 'Prerequisites',
+    questObjectives: 'Objectives',
+    questRewards: 'Rewards',
+    addObjective: 'Add Objective',
+    addReward: 'Add Reward',
+    saveQuest: 'Save Quest',
+    restartServer: 'Restart Server',
+    restartConfirm: 'Are you sure you want to restart the server?\nAll players will be disconnected.',
+    restartInitiated: 'Server restart initiated',
+    restartFail: 'Failed to restart server',
+    restartNotConfigured: 'restartBatPath is not configured. Set the BAT file path in server settings.',
+  }
+};
+
+let currentLang = localStorage.getItem('cds_lang') || 'ko';
+let authToken = localStorage.getItem('cds_token') || '';
+let allPlayers = [];
+let onlineUuids = new Set();
+let currentConfig = {};
+
+function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.en[key]) || key; }
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('cds_lang', lang);
+  applyI18n();
+}
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  // Update lang toggle active states
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if ((btn.textContent.includes('한국어') && currentLang === 'ko') ||
+        (btn.textContent.includes('English') && currentLang === 'en')) {
+      btn.classList.add('active');
+    }
+  });
+  // Re-render dynamic content if logged in
+  if (authToken && document.getElementById('mainApp').style.display !== 'none') {
+    const activePage = document.querySelector('.nav-item.active')?.dataset.page;
+    if (activePage === 'dashboard') loadDashboard();
+    if (activePage === 'items') renderItemList();
+    if (activePage === 'quests') renderQuestList();
+    if (activePage === 'config') renderConfigSections();
+  }
+}
+
+// ========== API ==========
+const API_BASE = window.location.origin;
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' }};
+  if (authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_BASE + path, opts);
+  if (res.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  return res.json();
+}
+
+// ========== Auth ==========
+async function doLogin() {
+  const pw = document.getElementById('loginPassword').value;
+  if (!pw) return;
+  try {
+    const data = await api('POST', '/api/auth', { password: pw });
+    if (data.token) {
+      authToken = data.token;
+      localStorage.setItem('cds_token', authToken);
+      showApp();
+    } else {
+      showToast(t('loginFail'), 'error');
+    }
+  } catch(e) {
+    showToast(t('loginFail'), 'error');
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') doLogin();
+});
+
+function doLogout() {
+  authToken = '';
+  localStorage.removeItem('cds_token');
+  stopSystemStatsPolling();
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+async function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  applyI18n();
+  startSystemStatsPolling();
+  try {
+    await loadDashboard();
+  } catch(e) {
+    // Token might be invalid
+    doLogout();
+  }
+}
+
+// ========== Navigation ==========
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.getElementById('page-' + page).style.display = 'block';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'players') loadPlayers();
+  if (page === 'items') loadItems();
+  if (page === 'quests') loadQuests();
+  if (page === 'config') loadConfig();
+  if (page === 'additional') loadAdditional();
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ========== Dashboard ==========
+async function loadDashboard() {
+  try {
+    const data = await api('GET', '/api/dashboard');
+    const cards = document.getElementById('dashboardCards');
+    cards.innerHTML = `
+      <div class="stat-card accent">
+        <div class="icon-wrap">&#127918;</div>
+        <div class="label">${t('cardOnline')}</div>
+        <div class="value">${data.onlinePlayers || 0}</div>
+      </div>
+      <div class="stat-card success">
+        <div class="icon-wrap">&#128101;</div>
+        <div class="label">${t('cardTotal')}</div>
+        <div class="value">${data.totalPlayers || 0}</div>
+      </div>
+      <div class="stat-card info">
+        <div class="icon-wrap">&#128190;</div>
+        <div class="label">${t('cardStorage')}</div>
+        <div class="value" style="font-size:1.3rem">${(data.storageType || 'json').toUpperCase()}</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="icon-wrap">&#128176;</div>
+        <div class="label">${t('cardEconomy')}</div>
+        <div class="value" style="font-size:1.3rem">${data.economyProvider || 'internal'}</div>
+      </div>
+    `;
+
+    const onlineList = document.getElementById('onlinePlayerList');
+    onlineUuids = new Set();
+    if (data.onlinePlayerList && data.onlinePlayerList.length > 0) {
+      onlineList.innerHTML = data.onlinePlayerList.map(p => {
+        onlineUuids.add(p.uuid);
+        return `<span class="player-chip" onclick="openPlayerModal('${p.uuid}')">
+          <img src="https://mc-heads.net/avatar/${p.uuid}/20" alt="">${p.name}</span>`;
+      }).join('');
+    } else {
+      onlineList.innerHTML = `<div class="empty-state"><div class="icon">&#128564;</div><p>${t('noOnline')}</p></div>`;
+    }
+  } catch(e) {
+    console.error('Dashboard load error:', e);
+  }
+}
+
+// ========== Players ==========
+async function loadPlayers() {
+  try {
+    const data = await api('GET', '/api/players');
+    allPlayers = data || [];
+    renderPlayerTable();
+  } catch(e) { console.error(e); }
+}
+
+function renderPlayerTable() {
+  const tbody = document.getElementById('playerTableBody');
+  const search = (document.getElementById('playerSearch')?.value || '').toLowerCase();
+  const filtered = allPlayers.filter(p => !search || (p.name||'').toLowerCase().includes(search) || (p.uuid||'').includes(search));
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">&#128566;</div><p>${t('noPlayers')}</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const isOnline = onlineUuids.has(p.uuid);
+    return `<tr onclick="openPlayerModal('${p.uuid}')">
+      <td><span class="online-dot ${isOnline?'on':'off'}"></span>${isOnline ? t('online') : t('offline')}</td>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td>${Math.round((p.itemLevel||0)*10)/10}</td>
+      <td><span class="gold-badge">&#9733; ${formatNum(p.gold||0)}</span></td>
+      <td>${p.equipAttack||0}</td>
+      <td>${p.equipDefense||0}</td>
+      <td>${p.currentHp||0}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPlayers() { renderPlayerTable(); }
+
+// ========== Player Modal ==========
+async function openPlayerModal(uuid) {
+  const overlay = document.getElementById('playerModal');
+  const body = document.getElementById('modalBody');
+  body.innerHTML = `<div class="loading"><div class="spinner"></div>${t('loading')}</div>`;
+  overlay.classList.add('active');
+
+  try {
+    const p = await api('GET', '/api/players/' + uuid);
+    document.getElementById('modalPlayerName').textContent = (p.name || 'Unknown') + ' - ' + t('playerDetail');
+    body.innerHTML = `
+      <h4 style="margin-bottom:12px">${t('basicInfo')}</h4>
+      <div class="stat-grid">
+        <div class="stat-item"><span class="stat-label">UUID</span><span class="stat-value" style="font-size:0.7rem;word-break:break-all">${p.uuid}</span></div>
+        <div class="stat-item"><span class="stat-label">${t('thLevel')}</span><span class="stat-value">${Math.round((p.itemLevel||0)*10)/10}</span></div>
+        <div class="stat-item"><span class="stat-label">HP</span><span class="stat-value">${p.currentHp} / ${p.maxHp||'?'}</span></div>
+        <div class="stat-item"><span class="stat-label">MP</span><span class="stat-value">${p.currentMp} / ${p.maxMp||'?'}</span></div>
+      </div>
+      <h4 style="margin-bottom:12px">${t('equipStats')}</h4>
+      <div class="stat-grid">
+        <div class="stat-item"><span class="stat-label">STR</span><span class="stat-value">${p.equipStrength||0}</span></div>
+        <div class="stat-item"><span class="stat-label">AGI</span><span class="stat-value">${p.equipAgility||0}</span></div>
+        <div class="stat-item"><span class="stat-label">INT</span><span class="stat-value">${p.equipIntelligence||0}</span></div>
+        <div class="stat-item"><span class="stat-label">LUK</span><span class="stat-value">${p.equipLuck||0}</span></div>
+        <div class="stat-item"><span class="stat-label">ATK</span><span class="stat-value">${p.equipAttack||0}</span></div>
+        <div class="stat-item"><span class="stat-label">M.ATK</span><span class="stat-value">${p.equipMagicAttack||0}</span></div>
+        <div class="stat-item"><span class="stat-label">DEF</span><span class="stat-value">${p.equipDefense||0}</span></div>
+        <div class="stat-item"><span class="stat-label">HP+</span><span class="stat-value">${p.equipHp||0}</span></div>
+        <div class="stat-item"><span class="stat-label">Crit Rate</span><span class="stat-value">${(p.equipCritRate||0).toFixed(1)}%</span></div>
+        <div class="stat-item"><span class="stat-label">Crit DMG</span><span class="stat-value">${(p.equipCritDamage||0).toFixed(1)}%</span></div>
+        <div class="stat-item"><span class="stat-label">Armor Pen</span><span class="stat-value">${(p.equipArmorPenetration||0).toFixed(1)}%</span></div>
+        <div class="stat-item"><span class="stat-label">Life Steal</span><span class="stat-value">${(p.equipLifeSteal||0).toFixed(1)}%</span></div>
+      </div>
+      <div class="gold-actions">
+        <h4>&#9733; ${t('goldManage')}</h4>
+        <div style="margin:8px 0;font-size:1.2rem;font-weight:700;color:var(--gold)">
+          ${t('currentGold')}: ${formatNum(p.gold||0)}
+        </div>
+        <div class="action-row">
+          <input type="number" id="goldInput" placeholder="${t('goldAmount')}" min="0">
+          <button class="btn btn-primary" onclick="goldAction('${p.uuid}','set')">${t('goldSet')}</button>
+          <button class="btn btn-success" onclick="goldAction('${p.uuid}','add')">${t('goldAdd')}</button>
+          <button class="btn btn-danger" onclick="goldAction('${p.uuid}','remove')">${t('goldRemove')}</button>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div class="empty-state">Error loading player data</div>`;
+  }
+}
+
+function closePlayerModal() {
+  document.getElementById('playerModal').classList.remove('active');
+}
+document.getElementById('playerModal').addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) closePlayerModal();
+});
+
+async function goldAction(uuid, action) {
+  const input = document.getElementById('goldInput');
+  const amount = parseInt(input.value);
+  if (isNaN(amount) || amount < 0) return;
+  try {
+    const res = await api('POST', '/api/players/' + uuid + '/gold', { action, amount });
+    if (res.success) {
+      showToast(t('goldSuccess') + ` (${formatNum(res.newBalance)})`, 'success');
+      openPlayerModal(uuid); // refresh
+      loadPlayers(); // refresh table
+    } else {
+      showToast(res.error || t('goldFail'), 'error');
+    }
+  } catch(e) {
+    showToast(t('goldFail'), 'error');
+  }
+}
+
+// ========== Config ==========
+const CONFIG_SECTIONS = {
+  sectSystemToggle: ['statSystemEnabled','damageSystemEnabled','customHealthEnabled','customHudEnabled','questSystemEnabled'],
+  sectCombat: ['defaultHitCooldownTicks','nonWeaponHitCooldownTicks','equipmentSyncIntervalTicks',
+    'useVanillaAttackSpeedForHitCooldown','minAttackSpeedCooldownTicks','maxAttackSpeedCooldownTicks',
+    'defenseConstant','environmentalDamageScale','externalDamageUsesCustomDefense',
+    'includeVanillaArmorForPlayerDefense','vanillaArmorDefenseMultiplier'],
+  sectDisplay: ['damageNumberRangeXZ','damageNumberRangeY'],
+  sectEconomy: ['economyEnabled','economyProvider','scoreboardObjective'],
+  sectWebPanel: ['webPanelEnabled','webPanelPort','webPanelPassword'],
+  sectMySQL: ['useMySQL','mysqlHost','mysqlPort','mysqlDatabase','mysqlUsername','mysqlPassword','mysqlPoolSize','mysqlTablePrefix'],
+  sectServer: ['restartBatPath','dailyResetHour','dailyResetTimezone','partyFriendlyFire']
+};
+
+// Field descriptions (ko / en)
+const FIELD_DESC = {
+  // System toggles
+  statSystemEnabled:                { ko: '스탯 시스템 활성화', en: 'Enable stat system' },
+  damageSystemEnabled:              { ko: '커스텀 대미지 시스템 활성화', en: 'Enable custom damage system' },
+  customHealthEnabled:              { ko: '커스텀 체력 시스템 활성화', en: 'Enable custom health system' },
+  customHudEnabled:                 { ko: '커스텀 HUD 활성화', en: 'Enable custom HUD' },
+  // AngongGui
+  overlayEnabled:                   { ko: '오버레이 표시 (상단 바)', en: 'Show overlay (top bar)' },
+  menuBarEnabled:                   { ko: 'ALT 메뉴 활성화', en: 'Enable ALT menu' },
+  moneyDisplayEnabled:              { ko: '골드 표시', en: 'Show money display' },
+  partyWindowEnabled:               { ko: '파티 창 활성화', en: 'Enable party window' },
+  questWindowEnabled:               { ko: '퀘스트 창 활성화', en: 'Enable quest window' },
+  customPauseScreenEnabled:         { ko: '커스텀 일시정지 화면', en: 'Custom pause screen' },
+  // Config fields
+  defaultHitCooldownTicks:          { ko: '기본 피격 쿨다운 (틱)', en: 'Default hit cooldown (ticks)' },
+  nonWeaponHitCooldownTicks:        { ko: '비무기 피격 쿨다운 (틱)', en: 'Non-weapon hit cooldown (ticks)' },
+  equipmentSyncIntervalTicks:       { ko: '장비 동기화 주기 (틱)', en: 'Equipment sync interval (ticks)' },
+  useVanillaAttackSpeedForHitCooldown: { ko: '바닐라 공격속도 기반 쿨다운 사용', en: 'Use vanilla attack speed for cooldown' },
+  minAttackSpeedCooldownTicks:      { ko: '최소 공격속도 쿨다운 (틱)', en: 'Min attack speed cooldown (ticks)' },
+  maxAttackSpeedCooldownTicks:      { ko: '최대 공격속도 쿨다운 (틱)', en: 'Max attack speed cooldown (ticks)' },
+  defenseConstant:                  { ko: '방어 상수 (높을수록 방어 효과 감소)', en: 'Defense constant (higher = less defense effect)' },
+  environmentalDamageScale:         { ko: '환경 대미지 배율', en: 'Environmental damage scale' },
+  externalDamageUsesCustomDefense:  { ko: '외부 대미지에 커스텀 방어 적용', en: 'Apply custom defense to external damage' },
+  includeVanillaArmorForPlayerDefense: { ko: '바닐라 방어구 방어력 포함', en: 'Include vanilla armor in defense' },
+  vanillaArmorDefenseMultiplier:    { ko: '바닐라 방어구 방어력 배율', en: 'Vanilla armor defense multiplier' },
+  damageNumberRangeXZ:              { ko: '대미지 숫자 표시 범위 (XZ)', en: 'Damage number display range (XZ)' },
+  damageNumberRangeY:               { ko: '대미지 숫자 표시 범위 (Y)', en: 'Damage number display range (Y)' },
+  economyEnabled:                   { ko: '이코노미 시스템 활성화', en: 'Enable economy system' },
+  economyProvider:                  { ko: '이코노미 제공자', en: 'Economy provider' },
+  scoreboardObjective:              { ko: '스코어보드 목표명 (scoreboard 모드용)', en: 'Scoreboard objective name (for scoreboard mode)' },
+  webPanelEnabled:                  { ko: '웹 패널 활성화', en: 'Enable web panel' },
+  webPanelPort:                     { ko: '웹 패널 포트', en: 'Web panel port' },
+  webPanelPassword:                 { ko: '웹 패널 비밀번호', en: 'Web panel password' },
+  restartBatPath:                   { ko: '서버 재시작 BAT 경로', en: 'Server restart BAT path' },
+  questSystemEnabled:               { ko: '퀘스트 시스템 활성화', en: 'Enable quest system' },
+  dailyResetHour:                   { ko: '일일 퀘스트 초기화 시각 (0~23)', en: 'Daily quest reset hour (0-23)' },
+  dailyResetTimezone:               { ko: '초기화 기준 시간대', en: 'Reset timezone' },
+  partyFriendlyFire:                { ko: '파티원 간 PvP 허용', en: 'Allow party friendly fire' },
+  useMySQL:                         { ko: 'MySQL 사용', en: 'Use MySQL' },
+  mysqlHost:                        { ko: 'MySQL 호스트', en: 'MySQL host' },
+  mysqlPort:                        { ko: 'MySQL 포트', en: 'MySQL port' },
+  mysqlDatabase:                    { ko: 'MySQL 데이터베이스명', en: 'MySQL database name' },
+  mysqlUsername:                    { ko: 'MySQL 사용자명', en: 'MySQL username' },
+  mysqlPassword:                    { ko: 'MySQL 비밀번호', en: 'MySQL password' },
+  mysqlPoolSize:                    { ko: 'MySQL 커넥션 풀 크기', en: 'MySQL connection pool size' },
+  mysqlTablePrefix:                 { ko: 'MySQL 테이블 접두사', en: 'MySQL table prefix' },
+};
+
+// Fields with dropdown select options
+const SELECT_OPTIONS = {
+  economyProvider: [
+    { value: 'internal', ko: 'internal (자체 골드)', en: 'internal (built-in gold)' },
+    { value: 'vault',    ko: 'vault (Vault 플러그인 연동)', en: 'vault (Vault plugin)' },
+    { value: 'scoreboard', ko: 'scoreboard (스코어보드 연동)', en: 'scoreboard (vanilla scoreboard)' },
+  ],
+};
+
+function getFieldLabel(field) {
+  const desc = FIELD_DESC[field];
+  if (desc) return desc[currentLang] || desc.en || field;
+  return field;
+}
+
+async function loadConfig() {
+  try {
+    currentConfig = await api('GET', '/api/config');
+    renderConfigSections();
+  } catch(e) { console.error(e); }
+}
+
+function renderConfigSections() {
+  const container = document.getElementById('configSections');
+  container.innerHTML = '';
+  for (const [sectionKey, fields] of Object.entries(CONFIG_SECTIONS)) {
+    const section = document.createElement('div');
+    section.className = 'config-section';
+    const header = document.createElement('div');
+    header.className = 'config-section-header';
+    header.innerHTML = `<h3>${t(sectionKey)}</h3><span class="arrow">&#9660;</span>`;
+    const body = document.createElement('div');
+    body.className = 'config-section-body';
+
+    header.addEventListener('click', () => {
+      header.classList.toggle('open');
+      body.classList.toggle('open');
+    });
+
+    fields.forEach(field => {
+      const val = currentConfig[field];
+      if (val === undefined) return;
+      const row = document.createElement('div');
+      row.className = 'config-row';
+      const label = document.createElement('label');
+      label.textContent = getFieldLabel(field);
+      label.title = field; // hover shows original field name
+      label.style.cursor = 'help';
+      row.appendChild(label);
+
+      // Check if this field has select options
+      if (SELECT_OPTIONS[field]) {
+        const sel = document.createElement('select');
+        sel.dataset.field = field;
+        SELECT_OPTIONS[field].forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt.value;
+          option.textContent = opt[currentLang] || opt.en;
+          if (opt.value === val) option.selected = true;
+          sel.appendChild(option);
+        });
+        row.appendChild(sel);
+      } else if (typeof val === 'boolean') {
+        const inp = document.createElement('input');
+        inp.type = 'checkbox';
+        inp.checked = val;
+        inp.dataset.field = field;
+        inp.style.width = 'auto';
+        row.appendChild(inp);
+      } else if (typeof val === 'number') {
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.value = val;
+        inp.step = Number.isInteger(val) ? '1' : '0.1';
+        inp.dataset.field = field;
+        row.appendChild(inp);
+      } else {
+        const inp = document.createElement('input');
+        inp.type = field.toLowerCase().includes('password') ? 'password' : 'text';
+        inp.value = val || '';
+        inp.dataset.field = field;
+        row.appendChild(inp);
+      }
+
+      // Add small hint with original field name
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.textContent = field;
+      hint.style.fontFamily = 'monospace';
+      row.appendChild(hint);
+
+      body.appendChild(row);
+    });
+
+    section.appendChild(header);
+    section.appendChild(body);
+    container.appendChild(section);
+  }
+}
+
+async function saveConfig() {
+  const updates = {};
+  document.querySelectorAll('#configSections [data-field]').forEach(el => {
+    const field = el.dataset.field;
+    const original = currentConfig[field];
+    if (el.tagName === 'SELECT') {
+      updates[field] = el.value;
+    } else if (typeof original === 'boolean') {
+      updates[field] = el.checked;
+    } else if (typeof original === 'number') {
+      updates[field] = Number.isInteger(original) ? parseInt(el.value) : parseFloat(el.value);
+    } else {
+      updates[field] = el.value;
+    }
+  });
+  try {
+    const res = await api('POST', '/api/config', updates);
+    if (res.success) {
+      showToast(t('configSaved'), 'success');
+      currentConfig = { ...currentConfig, ...updates };
+    } else {
+      showToast(res.error || t('configSaveFail'), 'error');
+    }
+  } catch(e) {
+    showToast(t('configSaveFail'), 'error');
+  }
+}
+
+// ========== Additional (Extension Modules) ==========
+let currentAdditional = {};
+
+async function loadAdditional() {
+  try {
+    currentAdditional = await api('GET', '/api/additional');
+    renderAdditionalSections();
+  } catch(e) { console.error(e); }
+}
+
+function renderAdditionalSections() {
+  const container = document.getElementById('additionalSections');
+  container.innerHTML = '';
+
+  // Section 1: System Toggles
+  const systemFields = ['statSystemEnabled','damageSystemEnabled','customHealthEnabled','customHudEnabled'];
+  const systemSection = createAdditionalSection(t('sectSystemToggle'), systemFields, currentAdditional, 'sys_');
+
+  container.appendChild(systemSection);
+
+  // Section 2: AngongGui Config
+  if (currentAdditional.angongGui) {
+    const guiFields = ['overlayEnabled','menuBarEnabled','moneyDisplayEnabled','partyWindowEnabled','questWindowEnabled','customPauseScreenEnabled'];
+    const guiSection = createAdditionalSection(t('sectAngongGui'), guiFields, currentAdditional.angongGui, 'gui_');
+    container.appendChild(guiSection);
+  }
+}
+
+function createAdditionalSection(title, fields, dataObj, prefix) {
+  const section = document.createElement('div');
+  section.className = 'config-section';
+
+  const header = document.createElement('div');
+  header.className = 'config-section-header';
+  header.innerHTML = `<h3>${title}</h3><span class="arrow">&#9660;</span>`;
+
+  const body = document.createElement('div');
+  body.className = 'config-section-body';
+
+  header.addEventListener('click', () => {
+    header.classList.toggle('open');
+    body.classList.toggle('open');
+  });
+
+  fields.forEach(field => {
+    const val = dataObj[field];
+    if (val === undefined) return;
+
+    const row = document.createElement('div');
+    row.className = 'config-row';
+
+    const label = document.createElement('label');
+    label.textContent = getFieldLabel(field);
+    label.title = field;
+    label.style.cursor = 'help';
+    row.appendChild(label);
+
+    if (typeof val === 'boolean') {
+      const inp = document.createElement('input');
+      inp.type = 'checkbox';
+      inp.checked = val;
+      inp.dataset.field = field;
+      inp.dataset.prefix = prefix;
+      inp.style.width = 'auto';
+      row.appendChild(inp);
+    } else if (typeof val === 'number') {
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.value = val;
+      inp.step = Number.isInteger(val) ? '1' : '0.1';
+      inp.dataset.field = field;
+      inp.dataset.prefix = prefix;
+      row.appendChild(inp);
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = val || '';
+      inp.dataset.field = field;
+      inp.dataset.prefix = prefix;
+      row.appendChild(inp);
+    }
+
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = field;
+    hint.style.fontFamily = 'monospace';
+    row.appendChild(hint);
+
+    body.appendChild(row);
+  });
+
+  section.appendChild(header);
+  section.appendChild(body);
+  return section;
+}
+
+async function saveAdditional() {
+  const updates = {};
+  const guiUpdates = {};
+
+  document.querySelectorAll('#additionalSections [data-field]').forEach(el => {
+    const field = el.dataset.field;
+    const prefix = el.dataset.prefix;
+    let value;
+
+    if (el.type === 'checkbox') {
+      value = el.checked;
+    } else if (el.type === 'number') {
+      value = parseFloat(el.value);
+      if (Number.isInteger(parseFloat(el.step))) value = parseInt(el.value);
+    } else {
+      value = el.value;
+    }
+
+    if (prefix === 'gui_') {
+      guiUpdates[field] = value;
+    } else {
+      updates[field] = value;
+    }
+  });
+
+  if (Object.keys(guiUpdates).length > 0) {
+    updates.angongGui = guiUpdates;
+  }
+
+  try {
+    const res = await api('POST', '/api/additional', updates);
+    if (res.success) {
+      showToast(t('additionalSaved'), 'success');
+      // Update local cache
+      for (const [k, v] of Object.entries(updates)) {
+        if (k !== 'angongGui') currentAdditional[k] = v;
+      }
+      if (updates.angongGui && currentAdditional.angongGui) {
+        Object.assign(currentAdditional.angongGui, updates.angongGui);
+      }
+    } else {
+      showToast(res.error || t('additionalSaveFail'), 'error');
+    }
+  } catch(e) {
+    showToast(t('additionalSaveFail'), 'error');
+  }
+}
+
+// ========== Item Field Labels (i18n) ==========
+const ITEM_LABELS = {
+  itemId:                  { ko: '아이템 ID',           en: 'Item ID' },
+  registryId:              { ko: '레지스트리 ID',        en: 'Registry ID' },
+  displayName:             { ko: '표시 이름',            en: 'Display Name' },
+  oraxenId:                { ko: 'Oraxen ID',           en: 'Oraxen ID' },
+  customModelData:         { ko: '커스텀 모델 데이터',    en: 'Custom Model Data' },
+  rarity:                  { ko: '등급',                 en: 'Rarity' },
+  itemLevel:               { ko: '아이템 레벨',          en: 'Item Level' },
+  itemLevelSlot:           { ko: '아이템 레벨 슬롯',      en: 'Item Level Slot' },
+  weapons:                 { ko: '무기 여부',            en: 'Weapon Type' },
+  overrideVanillaMainhand: { ko: '바닐라 주무기 무시',     en: 'Override Vanilla Mainhand' },
+  overrideVanillaArmor:    { ko: '바닐라 방어구 무시',     en: 'Override Vanilla Armor' },
+  slots:                   { ko: '슬롯',                en: 'Slots' },
+  attack:                  { ko: '공격력',               en: 'Attack' },
+  magicAttack:             { ko: '마법 공격력',           en: 'Magic Attack' },
+  defense:                 { ko: '방어력',               en: 'Defense' },
+  hp:                      { ko: 'HP',                  en: 'HP' },
+  critRate:                { ko: '크리티컬 확률 (%)',      en: 'Crit Rate (%)' },
+  critDamage:              { ko: '크리티컬 데미지 (%)',    en: 'Crit Damage (%)' },
+  attackSpeed:             { ko: '공격 속도',             en: 'Attack Speed' },
+  cooldownReduction:       { ko: '쿨다운 감소',           en: 'Cooldown Reduction' },
+  moveSpeed:               { ko: '이동 속도',             en: 'Move Speed' },
+  strength:                { ko: '힘 (STR)',             en: 'Strength (STR)' },
+  agility:                 { ko: '민첩 (AGI)',            en: 'Agility (AGI)' },
+  intelligence:            { ko: '지능 (INT)',            en: 'Intelligence (INT)' },
+  luck:                    { ko: '운 (LUK)',             en: 'Luck (LUK)' },
+};
+// Short stat labels for item card chips
+const STAT_SHORT = {
+  attack:      { ko: '공격력',      en: 'ATK' },
+  magicAttack: { ko: '마법공격력',   en: 'M.ATK' },
+  defense:     { ko: '방어력',      en: 'DEF' },
+  hp:          { ko: 'HP',         en: 'HP' },
+  critRate:    { ko: '크리확률',    en: 'Crit' },
+  critDamage:  { ko: '크리데미지',   en: 'CritDMG' },
+  strength:    { ko: '힘',         en: 'STR' },
+  agility:     { ko: '민첩',       en: 'AGI' },
+  intelligence:{ ko: '지능',       en: 'INT' },
+  luck:        { ko: '운',         en: 'LUK' },
+  attackSpeed: { ko: '공격속도',    en: 'SPD' },
+  moveSpeed:   { ko: '이동속도',    en: 'Move' },
+};
+function il(field) { const l = ITEM_LABELS[field]; return l ? (l[currentLang] || l.en) : field; }
+function ss(field) { const l = STAT_SHORT[field]; return l ? (l[currentLang] || l.en) : field; }
+
+// ========== Items ==========
+let allItems = [];
+let editingItemId = null; // null for add mode, registryId or itemId for edit mode
+
+async function loadItems() {
+  try {
+    const data = await api('GET', '/api/items');
+    allItems = data || [];
+    renderItemList();
+  } catch(e) { console.error(e); }
+}
+
+function renderItemList() {
+  const container = document.getElementById('itemListContainer');
+  const search = (document.getElementById('itemSearch')?.value || '').toLowerCase();
+  const filtered = allItems.filter(item => {
+    if (!search) return true;
+    return (item.itemId||'').toLowerCase().includes(search) ||
+           (item.registryId||'').toLowerCase().includes(search) ||
+           (item.displayName||'').toLowerCase().includes(search);
+  });
+
+  document.getElementById('itemCount').textContent = allItems.length;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">&#9876;</div><p>${t('noItems')}</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((item, idx) => {
+    const id = item.registryId || item.itemId;
+    const name = item.displayName || item.registryId || item.itemId;
+    const slots = (item.slots||[]).join(', ') || '-';
+    const stats = [];
+    if (item.attack > 0) stats.push(`${ss('attack')} <span class="val">${item.attack}</span>`);
+    if (item.magicAttack > 0) stats.push(`${ss('magicAttack')} <span class="val">${item.magicAttack}</span>`);
+    if (item.defense > 0) stats.push(`${ss('defense')} <span class="val">${item.defense}</span>`);
+    if (item.hp > 0) stats.push(`${ss('hp')} <span class="val">${item.hp}</span>`);
+    if (item.critRate > 0) stats.push(`${ss('critRate')} <span class="val">${item.critRate}%</span>`);
+    if (item.critDamage > 0) stats.push(`${ss('critDamage')} <span class="val">${item.critDamage}%</span>`);
+    if (item.strength > 0) stats.push(`${ss('strength')} <span class="val">${item.strength}</span>`);
+    if (item.agility > 0) stats.push(`${ss('agility')} <span class="val">${item.agility}</span>`);
+    if (item.intelligence > 0) stats.push(`${ss('intelligence')} <span class="val">${item.intelligence}</span>`);
+    if (item.luck > 0) stats.push(`${ss('luck')} <span class="val">${item.luck}</span>`);
+    if (item.attackSpeed > 0) stats.push(`${ss('attackSpeed')} <span class="val">${item.attackSpeed}</span>`);
+    if (item.moveSpeed > 0) stats.push(`${ss('moveSpeed')} <span class="val">${item.moveSpeed}</span>`);
+
+    const lvLabel = currentLang==='ko' ? '레벨' : 'Lv';
+    const slotLabel = currentLang==='ko' ? '슬롯' : 'Slots';
+    return `<div class="item-card">
+      <div class="item-card-header">
+        <div>
+          <div class="item-name">${esc(name)}</div>
+          <div class="item-id">${esc(item.itemId)}${item.registryId ? ' | ' + esc(item.registryId) : ''} | ${lvLabel} ${item.itemLevel} | ${slotLabel}: ${esc(slots)}</div>
+        </div>
+        <div class="item-card-actions">
+          <button class="btn btn-primary" onclick="openEditItemModal(${idx})">&#9998; ${t('editItem')}</button>
+          <button class="btn btn-danger" onclick="deleteItem(${idx})">&#10005; ${t('deleteItem')}</button>
+        </div>
+      </div>
+      ${stats.length > 0 ? `<div class="item-card-stats">${stats.map(s => `<span class="item-stat-chip">${s}</span>`).join('')}</div>` : ''}
+      ${item.itemData ? `<div style="margin-top:8px;font-size:0.75rem;color:var(--text-muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">itemData: ${esc((item.itemData||'').substring(0,80))}${(item.itemData||'').length > 80 ? '...' : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function filterItems() { renderItemList(); }
+
+function openAddItemModal() {
+  editingItemId = null;
+  document.getElementById('itemModalTitle').textContent = t('addNewItem');
+  renderItemEditForm({
+    itemId: 'minecraft:', registryId: '', oraxenId: '', customModelData: 0,
+    displayName: '', itemData: '', rarity: 'NORMAL', slots: [], itemLevel: 0, itemLevelSlot: 0,
+    overrideVanillaMainhand: true, overrideVanillaArmor: true,
+    attack: 0, magicAttack: 0, defense: 0, hp: 0, critRate: 0, critDamage: 0,
+    attackSpeed: 0, cooldownReduction: 0, moveSpeed: 0,
+    strength: 0, agility: 0, intelligence: 0, luck: 0, weapons: 0
+  });
+  document.getElementById('itemModal').classList.add('active');
+}
+
+function openEditItemModal(idx) {
+  const item = allItems[idx];
+  if (!item) return;
+  editingItemId = item.registryId || item.itemId;
+  document.getElementById('itemModalTitle').textContent = t('editItem') + ' - ' + (item.displayName || item.registryId || item.itemId);
+  renderItemEditForm(item);
+  document.getElementById('itemModal').classList.add('active');
+}
+
+function renderItemEditForm(item) {
+  const body = document.getElementById('itemModalBody');
+  const slotsHtml = (item.slots||[]).map(s => `<span class="slot-tag">${esc(s)} <span class="remove-slot" onclick="removeSlotTag(this)">&times;</span></span>`).join('');
+
+  const SLOT_OPTIONS = ['mainhand','head','chest','legs','feet','offhand','ring','necklace','earring'];
+
+  body.innerHTML = `
+    <h4 style="margin-bottom:12px">${t('itemMeta')}</h4>
+    <div class="item-edit-grid">
+      <div class="item-edit-field">
+        <label>${il('itemId')} *</label>
+        <input type="text" id="ie_itemId" value="${esc(item.itemId||'')}" placeholder="minecraft:wooden_sword">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('registryId')}</label>
+        <input type="text" id="ie_registryId" value="${esc(item.registryId||'')}" placeholder="wooden_ring">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('displayName')}</label>
+        <input type="text" id="ie_displayName" value="${esc(item.displayName||'')}">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('oraxenId')}</label>
+        <input type="text" id="ie_oraxenId" value="${esc(item.oraxenId||'')}">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('customModelData')}</label>
+        <input type="number" id="ie_customModelData" value="${item.customModelData||0}" min="0">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('rarity')}</label>
+        <select id="ie_rarity">
+          <option value="NORMAL" ${(item.rarity||'NORMAL')==='NORMAL'?'selected':''}>Normal (노말)</option>
+          <option value="RARE" ${item.rarity==='RARE'?'selected':''}>Rare (레어)</option>
+          <option value="EPIC" ${item.rarity==='EPIC'?'selected':''}>Epic (에픽)</option>
+          <option value="UNIQUE" ${item.rarity==='UNIQUE'?'selected':''}>Unique (유니크)</option>
+          <option value="LEGENDARY" ${item.rarity==='LEGENDARY'?'selected':''}>Legendary (레전더리)</option>
+        </select>
+      </div>
+      <div class="item-edit-field">
+        <label>${il('itemLevel')}</label>
+        <input type="number" id="ie_itemLevel" value="${item.itemLevel||0}" step="0.1">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('itemLevelSlot')}</label>
+        <input type="number" id="ie_itemLevelSlot" value="${item.itemLevelSlot||0}" min="0">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('weapons')}</label>
+        <select id="ie_weapons">
+          <option value="0" ${item.weapons===0?'selected':''}>0 (${currentLang==='ko'?'비무기':'Not weapon'})</option>
+          <option value="1" ${item.weapons===1?'selected':''}>1 (${currentLang==='ko'?'무기':'Weapon'})</option>
+        </select>
+      </div>
+      <div class="item-edit-field">
+        <label>${il('overrideVanillaMainhand')}</label>
+        <input type="checkbox" id="ie_overrideVanillaMainhand" ${item.overrideVanillaMainhand?'checked':''} style="width:auto">
+      </div>
+      <div class="item-edit-field">
+        <label>${il('overrideVanillaArmor')}</label>
+        <input type="checkbox" id="ie_overrideVanillaArmor" ${item.overrideVanillaArmor?'checked':''} style="width:auto">
+      </div>
+      <div class="item-edit-field full-width">
+        <label>${il('slots')}</label>
+        <div class="slot-tags" id="ie_slotsContainer">
+          ${slotsHtml}
+          <select id="ie_slotSelect" style="width:auto;padding:4px 8px;font-size:0.8rem">
+            <option value="">-- ${t('slotAdd')} --</option>
+            ${SLOT_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <h4 style="margin:20px 0 12px">${t('itemStats')}</h4>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>${il('attack')}</label><input type="number" id="ie_attack" value="${item.attack||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('magicAttack')}</label><input type="number" id="ie_magicAttack" value="${item.magicAttack||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('defense')}</label><input type="number" id="ie_defense" value="${item.defense||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('hp')}</label><input type="number" id="ie_hp" value="${item.hp||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('critRate')}</label><input type="number" id="ie_critRate" value="${item.critRate||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('critDamage')}</label><input type="number" id="ie_critDamage" value="${item.critDamage||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('attackSpeed')}</label><input type="number" id="ie_attackSpeed" value="${item.attackSpeed||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('cooldownReduction')}</label><input type="number" id="ie_cooldownReduction" value="${item.cooldownReduction||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('moveSpeed')}</label><input type="number" id="ie_moveSpeed" value="${item.moveSpeed||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>${il('strength')}</label><input type="number" id="ie_strength" value="${item.strength||0}" step="1"></div>
+      <div class="item-edit-field"><label>${il('agility')}</label><input type="number" id="ie_agility" value="${item.agility||0}" step="1"></div>
+      <div class="item-edit-field"><label>${il('intelligence')}</label><input type="number" id="ie_intelligence" value="${item.intelligence||0}" step="1"></div>
+      <div class="item-edit-field"><label>${il('luck')}</label><input type="number" id="ie_luck" value="${item.luck||0}" step="1"></div>
+    </div>
+
+    <h4 style="margin:20px 0 12px">${t('itemDataLabel')}</h4>
+    <div class="item-edit-field full-width">
+      <textarea class="item-data-area" id="ie_itemData" rows="4">${esc(item.itemData||'')}</textarea>
+      <div class="item-data-actions">
+        <button class="btn btn-ghost" onclick="decodeItemData()">${t('decodeBtn')} (Base64)</button>
+        <button class="btn btn-ghost" onclick="encodeItemData()">${t('encodeBtn')} (Base64)</button>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeItemModal()">${currentLang==='ko'?'취소':'Cancel'}</button>
+      <button class="btn btn-primary" onclick="saveItemFromModal()">&#128190; ${t('saveItem')}</button>
+    </div>
+  `;
+
+  // Slot select handler
+  document.getElementById('ie_slotSelect').addEventListener('change', function() {
+    if (!this.value) return;
+    const container = document.getElementById('ie_slotsContainer');
+    const tag = document.createElement('span');
+    tag.className = 'slot-tag';
+    tag.innerHTML = this.value + ' <span class="remove-slot" onclick="removeSlotTag(this)">&times;</span>';
+    container.insertBefore(tag, this);
+    this.value = '';
+  });
+}
+
+function removeSlotTag(el) { el.parentElement.remove(); }
+
+function collectSlotsFromModal() {
+  const tags = document.querySelectorAll('#ie_slotsContainer .slot-tag');
+  return Array.from(tags).map(tag => tag.textContent.replace('×','').trim());
+}
+
+function collectItemFromModal() {
+  return {
+    itemId: document.getElementById('ie_itemId').value.trim(),
+    registryId: document.getElementById('ie_registryId').value.trim() || null,
+    displayName: document.getElementById('ie_displayName').value.trim() || null,
+    oraxenId: document.getElementById('ie_oraxenId').value.trim() || null,
+    customModelData: parseInt(document.getElementById('ie_customModelData').value) || 0,
+    rarity: document.getElementById('ie_rarity').value || 'NORMAL',
+    itemLevel: parseFloat(document.getElementById('ie_itemLevel').value) || 0,
+    itemLevelSlot: parseInt(document.getElementById('ie_itemLevelSlot').value) || 0,
+    weapons: parseInt(document.getElementById('ie_weapons').value) || 0,
+    overrideVanillaMainhand: document.getElementById('ie_overrideVanillaMainhand').checked,
+    overrideVanillaArmor: document.getElementById('ie_overrideVanillaArmor').checked,
+    slots: collectSlotsFromModal(),
+    attack: parseFloat(document.getElementById('ie_attack').value) || 0,
+    magicAttack: parseFloat(document.getElementById('ie_magicAttack').value) || 0,
+    defense: parseFloat(document.getElementById('ie_defense').value) || 0,
+    hp: parseFloat(document.getElementById('ie_hp').value) || 0,
+    critRate: parseFloat(document.getElementById('ie_critRate').value) || 0,
+    critDamage: parseFloat(document.getElementById('ie_critDamage').value) || 0,
+    attackSpeed: parseFloat(document.getElementById('ie_attackSpeed').value) || 0,
+    cooldownReduction: parseFloat(document.getElementById('ie_cooldownReduction').value) || 0,
+    moveSpeed: parseFloat(document.getElementById('ie_moveSpeed').value) || 0,
+    strength: parseInt(document.getElementById('ie_strength').value) || 0,
+    agility: parseInt(document.getElementById('ie_agility').value) || 0,
+    intelligence: parseInt(document.getElementById('ie_intelligence').value) || 0,
+    luck: parseInt(document.getElementById('ie_luck').value) || 0,
+    itemData: document.getElementById('ie_itemData').value.trim() || null,
+  };
+}
+
+async function saveItemFromModal() {
+  const data = collectItemFromModal();
+  if (!data.itemId) { showToast('itemId is required', 'error'); return; }
+
+  try {
+    let res;
+    if (editingItemId) {
+      // Update existing
+      res = await api('POST', '/api/items/' + encodeURIComponent(editingItemId), data);
+    } else {
+      // Add new
+      res = await api('POST', '/api/items', data);
+    }
+    if (res.success) {
+      showToast(editingItemId ? t('itemSaved') : t('itemAdded'), 'success');
+      closeItemModal();
+      loadItems();
+    } else {
+      showToast(res.error || (editingItemId ? t('itemSaveFail') : t('itemAddFail')), 'error');
+    }
+  } catch(e) {
+    showToast(editingItemId ? t('itemSaveFail') : t('itemAddFail'), 'error');
+  }
+}
+
+async function deleteItem(idx) {
+  const item = allItems[idx];
+  if (!item) return;
+  if (!confirm(t('deleteConfirm'))) return;
+
+  const id = item.registryId || item.itemId;
+  try {
+    const res = await api('DELETE', '/api/items/' + encodeURIComponent(id));
+    if (res.success) {
+      showToast(t('itemDeleted'), 'success');
+      loadItems();
+    } else {
+      showToast(res.error || t('itemDeleteFail'), 'error');
+    }
+  } catch(e) {
+    showToast(t('itemDeleteFail'), 'error');
+  }
+}
+
+function closeItemModal() {
+  document.getElementById('itemModal').classList.remove('active');
+}
+document.getElementById('itemModal').addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) closeItemModal();
+});
+
+// Base64 decode/encode for itemData (browser-side, raw bytes view)
+function decodeItemData() {
+  const area = document.getElementById('ie_itemData');
+  const val = area.value.trim();
+  if (!val) return;
+  try {
+    const bytes = atob(val);
+    // Show as hex dump + printable ASCII interpretation
+    let hex = '';
+    let ascii = '';
+    let result = '';
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes.charCodeAt(i);
+      hex += b.toString(16).padStart(2, '0') + ' ';
+      ascii += (b >= 32 && b < 127) ? bytes[i] : '.';
+      if ((i + 1) % 16 === 0 || i === bytes.length - 1) {
+        const pad = '   '.repeat(16 - ((i % 16) + 1));
+        result += hex + pad + '| ' + ascii + '\n';
+        hex = '';
+        ascii = '';
+      }
+    }
+    area.value = result;
+    area.style.minHeight = '200px';
+    showToast(t('decoded') + ` (${bytes.length} bytes)`, 'info');
+  } catch(e) {
+    showToast('Base64 decode error: ' + e.message, 'error');
+  }
+}
+
+function encodeItemData() {
+  const area = document.getElementById('ie_itemData');
+  const val = area.value.trim();
+  if (!val) return;
+  // Check if it's already hex dump format (lines with | separator)
+  if (val.includes('|')) {
+    try {
+      const lines = val.split('\n').filter(l => l.includes('|'));
+      let bytes = '';
+      for (const line of lines) {
+        const hexPart = line.split('|')[0].trim();
+        const hexBytes = hexPart.split(/\s+/).filter(h => h.length === 2);
+        for (const h of hexBytes) {
+          bytes += String.fromCharCode(parseInt(h, 16));
+        }
+      }
+      area.value = btoa(bytes);
+      area.style.minHeight = '80px';
+      showToast(t('encoded'), 'info');
+    } catch(e) {
+      showToast('Encode error: ' + e.message, 'error');
+    }
+  } else {
+    // Try direct encode
+    try {
+      area.value = btoa(val);
+      showToast(t('encoded'), 'info');
+    } catch(e) {
+      showToast('Encode error: ' + e.message, 'error');
+    }
+  }
+}
+
+// ========== System Stats (CPU/RAM) ==========
+let systemStatsInterval = null;
+
+async function loadSystemStats() {
+  try {
+    const data = await api('GET', '/api/system');
+    const statsEl = document.getElementById('sidebarSystemStats');
+    statsEl.style.display = 'block';
+
+    const cpuEl = document.getElementById('sysCpu');
+    const cpu = data.cpuUsage >= 0 ? data.cpuUsage.toFixed(1) : '-';
+    cpuEl.textContent = cpu;
+    cpuEl.style.color = data.cpuUsage > 80 ? 'var(--danger)' : data.cpuUsage > 50 ? 'var(--warning)' : 'var(--success)';
+
+    document.getElementById('sysRamUsed').textContent = data.usedMemoryMB;
+    document.getElementById('sysRamMax').textContent = data.maxMemoryMB;
+
+    const ramPercent = data.maxMemoryMB > 0 ? (data.usedMemoryMB / data.maxMemoryMB * 100) : 0;
+    const ramBar = document.getElementById('sysRamBar');
+    ramBar.style.width = ramPercent.toFixed(1) + '%';
+    ramBar.style.background = ramPercent > 85 ? 'var(--danger)' : ramPercent > 60 ? 'var(--warning)' : 'var(--accent)';
+  } catch(e) {
+    // silently ignore - server might be down
+  }
+}
+
+function startSystemStatsPolling() {
+  loadSystemStats();
+  if (systemStatsInterval) clearInterval(systemStatsInterval);
+  systemStatsInterval = setInterval(loadSystemStats, 5000);
+}
+
+function stopSystemStatsPolling() {
+  if (systemStatsInterval) { clearInterval(systemStatsInterval); systemStatsInterval = null; }
+  document.getElementById('sidebarSystemStats').style.display = 'none';
+}
+
+// ========== Server Restart ==========
+async function confirmRestart() {
+  if (!confirm(t('restartConfirm'))) return;
+
+  try {
+    const res = await api('POST', '/api/restart');
+    if (res.success) {
+      showToast(t('restartInitiated'), 'success');
+    } else {
+      showToast(res.error || t('restartFail'), 'error');
+    }
+  } catch(e) {
+    const msg = e.message || '';
+    if (msg.includes('restartBatPath') || msg.includes('not configured')) {
+      showToast(t('restartNotConfigured'), 'error');
+    } else {
+      // Server may already be shutting down
+      showToast(t('restartInitiated'), 'success');
+    }
+  }
+}
+
+// ========== Quests ==========
+const QUEST_CATEGORIES = ['MAIN','SUB','DAILY','REPEAT','WEEKLY','GUILD','EVENT'];
+const QUEST_CAT_COLORS = { MAIN:'var(--gold)', SUB:'var(--info)', DAILY:'var(--success)', REPEAT:'#a29bfe', WEEKLY:'#74b9ff', GUILD:'var(--warning)', EVENT:'var(--danger)' };
+const OBJECTIVE_TYPES = ['KILL_MOB','KILL_NAMED','COLLECT_ITEM','COLLECT_MOB_DROP','DELIVER_ITEM','TALK_NPC','REACH_LOCATION','CRAFT_ITEM','GATHER_RESOURCE','FISHING','CUSTOM'];
+const REWARD_TYPES = ['gold','exp','item','command','stat'];
+
+let allQuests = [];
+let editingQuestId = null;
+
+async function loadQuests() {
+  try {
+    const data = await api('GET', '/api/quests');
+    allQuests = data || [];
+    renderQuestList();
+  } catch(e) { console.error(e); }
+}
+
+function renderQuestList() {
+  const container = document.getElementById('questListContainer');
+  const search = (document.getElementById('questSearch')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('questCategoryFilter')?.value || '';
+  const filtered = allQuests.filter(q => {
+    if (catFilter && q.category !== catFilter) return false;
+    if (!search) return true;
+    return (q.id||'').toLowerCase().includes(search) ||
+           (q.title||'').toLowerCase().includes(search) ||
+           (q.description||'').toLowerCase().includes(search);
+  });
+
+  document.getElementById('questCount').textContent = allQuests.length;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">&#9733;</div><p>${t('noQuests')}</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((q, idx) => {
+    const catColor = QUEST_CAT_COLORS[q.category] || 'var(--text-muted)';
+    const objCount = (q.objectives||[]).length;
+    const rwdCount = (q.rewards||[]).length;
+    const objLabel = currentLang==='ko' ? '조건' : 'Obj';
+    const rwdLabel = currentLang==='ko' ? '보상' : 'Rwd';
+    const chainInfo = q.chainId ? `Chain: ${esc(q.chainId)} #${q.chainOrder}` : '';
+    const flags = [];
+    if (q.repeatable) flags.push(currentLang==='ko'?'반복':'Repeat');
+    if (q.dailyReset) flags.push(currentLang==='ko'?'일일':'Daily');
+    if (q.autoAccept) flags.push(currentLang==='ko'?'자동수락':'Auto');
+    const prereqQuests = q.prerequisites?.quests || [];
+    const minLv = q.prerequisites?.minLevel || 0;
+
+    const realIdx = allQuests.indexOf(q);
+    return `<div class="item-card">
+      <div class="item-card-header">
+        <div>
+          <div class="item-name">
+            <span style="color:${catColor};font-weight:700;font-size:0.75rem;padding:2px 8px;border-radius:4px;background:${catColor}22;margin-right:8px">${q.category}</span>
+            ${esc(q.title)}
+          </div>
+          <div class="item-id">${esc(q.id)}${chainInfo ? ' | ' + chainInfo : ''} | ${objLabel}: ${objCount} | ${rwdLabel}: ${rwdCount}${q.sortOrder ? ' | Sort: '+q.sortOrder : ''}</div>
+          ${q.description ? `<div style="margin-top:4px;font-size:0.82rem;color:var(--text-secondary)">${esc(q.description)}</div>` : ''}
+        </div>
+        <div class="item-card-actions">
+          <button class="btn btn-primary" onclick="openEditQuestModal(${realIdx})">&#9998; ${t('editQuest')}</button>
+          <button class="btn btn-danger" onclick="deleteQuest(${realIdx})">&#10005; ${t('deleteQuest')}</button>
+        </div>
+      </div>
+      <div class="item-card-stats">
+        ${flags.map(f => `<span class="item-stat-chip">${f}</span>`).join('')}
+        ${prereqQuests.length > 0 ? `<span class="item-stat-chip">${currentLang==='ko'?'선행':'Prereq'}: ${prereqQuests.join(', ')}</span>` : ''}
+        ${minLv > 0 ? `<span class="item-stat-chip">Lv ${minLv}+</span>` : ''}
+        ${q.nextQuest ? `<span class="item-stat-chip">${currentLang==='ko'?'다음':'Next'}: ${q.nextQuest}</span>` : ''}
+        ${(q.rewards||[]).map(r => {
+          if (r.type==='gold') return `<span class="item-stat-chip" style="color:var(--gold)">Gold <span class="val">${r.amount}</span></span>`;
+          if (r.type==='exp') return `<span class="item-stat-chip" style="color:var(--success)">EXP <span class="val">${r.amount}</span></span>`;
+          if (r.type==='item') return `<span class="item-stat-chip" style="color:var(--info)">Item <span class="val">${r.item} x${r.amount}</span></span>`;
+          if (r.type==='command') return `<span class="item-stat-chip">CMD</span>`;
+          if (r.type==='stat') return `<span class="item-stat-chip">${r.stat} +${r.value}</span>`;
+          return '';
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterQuests() { renderQuestList(); }
+
+function emptyQuest() {
+  return {
+    id: '', title: '', description: '', category: 'SUB',
+    chainId: null, chainOrder: 0, repeatable: false, dailyReset: false, autoAccept: false,
+    sortOrder: 0, nextQuest: null,
+    prerequisites: { quests: [], minLevel: 0 },
+    objectives: [{ type: 'KILL_MOB', description: '', amount: 1, entityType: '', entityName: null, item: null, block: null, npcId: null, fromNpc: null, customId: null, dropChance: 1.0, x: 0, y: 0, z: 0, radius: 5, level: 0 }],
+    rewards: [{ type: 'gold', amount: 100, item: null, command: null, stat: null, value: 0 }]
+  };
+}
+
+function openAddQuestModal() {
+  editingQuestId = null;
+  document.getElementById('questModalTitle').textContent = t('addNewQuest');
+  renderQuestEditForm(emptyQuest());
+  document.getElementById('questModal').classList.add('active');
+}
+
+function openEditQuestModal(idx) {
+  const q = allQuests[idx];
+  if (!q) return;
+  editingQuestId = q.id;
+  document.getElementById('questModalTitle').textContent = t('editQuest') + ' - ' + (q.title || q.id);
+  renderQuestEditForm(q);
+  document.getElementById('questModal').classList.add('active');
+}
+
+function renderQuestEditForm(q) {
+  const body = document.getElementById('questModalBody');
+  const prereqStr = (q.prerequisites?.quests || []).join(', ');
+
+  body.innerHTML = `
+    <h4 style="margin-bottom:12px">${t('questBasicInfo')}</h4>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>ID *</label><input type="text" id="qe_id" value="${esc(q.id||'')}" placeholder="mq_001_village_call" ${editingQuestId?'readonly style="opacity:0.6"':''}></div>
+      <div class="item-edit-field"><label>Title *</label><input type="text" id="qe_title" value="${esc(q.title||'')}"></div>
+      <div class="item-edit-field"><label>Category</label>
+        <select id="qe_category">${QUEST_CATEGORIES.map(c => `<option value="${c}" ${q.category===c?'selected':''}>${c}</option>`).join('')}</select>
+      </div>
+      <div class="item-edit-field"><label>Sort Order</label><input type="number" id="qe_sortOrder" value="${q.sortOrder||0}"></div>
+      <div class="item-edit-field full-width"><label>Description</label><input type="text" id="qe_description" value="${esc(q.description||'')}"></div>
+    </div>
+
+    <h4 style="margin:20px 0 12px">${t('questChain')}</h4>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>Chain ID</label><input type="text" id="qe_chainId" value="${esc(q.chainId||'')}" placeholder="main_story_ch1"></div>
+      <div class="item-edit-field"><label>Chain Order</label><input type="number" id="qe_chainOrder" value="${q.chainOrder||0}"></div>
+      <div class="item-edit-field"><label>Next Quest</label><input type="text" id="qe_nextQuest" value="${esc(q.nextQuest||'')}" placeholder="mq_002_..."></div>
+    </div>
+
+    <h4 style="margin:20px 0 12px">${t('questFlags')}</h4>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>Repeatable</label><input type="checkbox" id="qe_repeatable" ${q.repeatable?'checked':''} style="width:auto"></div>
+      <div class="item-edit-field"><label>Daily Reset</label><input type="checkbox" id="qe_dailyReset" ${q.dailyReset?'checked':''} style="width:auto"></div>
+      <div class="item-edit-field"><label>Auto Accept</label><input type="checkbox" id="qe_autoAccept" ${q.autoAccept?'checked':''} style="width:auto"></div>
+    </div>
+
+    <h4 style="margin:20px 0 12px">${t('questPrereq')}</h4>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>${currentLang==='ko'?'선행 퀘스트 (쉼표 구분)':'Prerequisite Quests (comma sep)'}</label><input type="text" id="qe_prereqQuests" value="${esc(prereqStr)}" placeholder="mq_001, mq_002"></div>
+      <div class="item-edit-field"><label>Min Level</label><input type="number" id="qe_minLevel" value="${q.prerequisites?.minLevel||0}" min="0"></div>
+    </div>
+
+    <h4 style="margin:20px 0 12px">${t('questObjectives')}
+      <button class="btn btn-ghost" style="margin-left:12px;font-size:0.8rem" onclick="addQuestObjectiveRow()">&#10010; ${t('addObjective')}</button>
+    </h4>
+    <div id="qe_objectives">${(q.objectives||[]).map((o,i) => questObjectiveRowHtml(o,i)).join('')}</div>
+
+    <h4 style="margin:20px 0 12px">${t('questRewards')}
+      <button class="btn btn-ghost" style="margin-left:12px;font-size:0.8rem" onclick="addQuestRewardRow()">&#10010; ${t('addReward')}</button>
+    </h4>
+    <div id="qe_rewards">${(q.rewards||[]).map((r,i) => questRewardRowHtml(r,i)).join('')}</div>
+
+    <div style="margin-top:24px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeQuestModal()">${currentLang==='ko'?'취소':'Cancel'}</button>
+      <button class="btn btn-primary" onclick="saveQuestFromModal()">&#128190; ${t('saveQuest')}</button>
+    </div>
+  `;
+}
+
+let qeObjCounter = 100;
+function questObjectiveRowHtml(o, idx) {
+  const id = 'qo_' + (idx !== undefined ? idx : qeObjCounter++);
+  return `<div class="config-section" style="margin-bottom:8px;padding:12px;background:var(--bg-input);border-radius:var(--radius-sm);border:1px solid var(--border)" data-obj-row>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:0.85rem;font-weight:600">Objective</span>
+      <button class="btn btn-danger" style="font-size:0.75rem;padding:2px 8px" onclick="this.closest('[data-obj-row]').remove()">&#10005;</button>
+    </div>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>Type</label>
+        <select data-obj="type">${OBJECTIVE_TYPES.map(t => `<option value="${t}" ${o.type===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="item-edit-field"><label>Amount</label><input type="number" data-obj="amount" value="${o.amount||1}" min="1"></div>
+      <div class="item-edit-field full-width"><label>Description</label><input type="text" data-obj="description" value="${esc(o.description||'')}"></div>
+      <div class="item-edit-field"><label>Entity Type</label><input type="text" data-obj="entityType" value="${esc(o.entityType||'')}" placeholder="minecraft:slime"></div>
+      <div class="item-edit-field"><label>Entity Name</label><input type="text" data-obj="entityName" value="${esc(o.entityName||'')}"></div>
+      <div class="item-edit-field"><label>Item</label><input type="text" data-obj="item" value="${esc(o.item||'')}" placeholder="minecraft:paper"></div>
+      <div class="item-edit-field"><label>Block</label><input type="text" data-obj="block" value="${esc(o.block||'')}"></div>
+      <div class="item-edit-field"><label>NPC ID</label><input type="text" data-obj="npcId" value="${esc(o.npcId||'')}"></div>
+      <div class="item-edit-field"><label>From NPC</label><input type="text" data-obj="fromNpc" value="${esc(o.fromNpc||'')}"></div>
+      <div class="item-edit-field"><label>Custom ID</label><input type="text" data-obj="customId" value="${esc(o.customId||'')}"></div>
+      <div class="item-edit-field"><label>Drop Chance</label><input type="number" data-obj="dropChance" value="${o.dropChance!=null?o.dropChance:1}" step="0.01" min="0" max="1"></div>
+      <div class="item-edit-field"><label>X</label><input type="number" data-obj="x" value="${o.x||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>Y</label><input type="number" data-obj="y" value="${o.y||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>Z</label><input type="number" data-obj="z" value="${o.z||0}" step="0.1"></div>
+      <div class="item-edit-field"><label>Radius</label><input type="number" data-obj="radius" value="${o.radius||5}" step="0.1"></div>
+      <div class="item-edit-field"><label>Level</label><input type="number" data-obj="level" value="${o.level||0}" min="0"></div>
+    </div>
+  </div>`;
+}
+
+function addQuestObjectiveRow() {
+  const container = document.getElementById('qe_objectives');
+  const div = document.createElement('div');
+  div.innerHTML = questObjectiveRowHtml({ type:'KILL_MOB', description:'', amount:1, entityType:'', entityName:null, item:null, block:null, npcId:null, fromNpc:null, customId:null, dropChance:1, x:0, y:0, z:0, radius:5, level:0 });
+  container.appendChild(div.firstElementChild);
+}
+
+function questRewardRowHtml(r, idx) {
+  return `<div class="config-section" style="margin-bottom:8px;padding:12px;background:var(--bg-input);border-radius:var(--radius-sm);border:1px solid var(--border)" data-rwd-row>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:0.85rem;font-weight:600">Reward</span>
+      <button class="btn btn-danger" style="font-size:0.75rem;padding:2px 8px" onclick="this.closest('[data-rwd-row]').remove()">&#10005;</button>
+    </div>
+    <div class="item-edit-grid">
+      <div class="item-edit-field"><label>Type</label>
+        <select data-rwd="type">${REWARD_TYPES.map(t => `<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="item-edit-field"><label>Amount</label><input type="number" data-rwd="amount" value="${r.amount||0}"></div>
+      <div class="item-edit-field"><label>Item</label><input type="text" data-rwd="item" value="${esc(r.item||'')}" placeholder="minecraft:iron_sword"></div>
+      <div class="item-edit-field"><label>Command</label><input type="text" data-rwd="command" value="${esc(r.command||'')}" placeholder="/give %player% ..."></div>
+      <div class="item-edit-field"><label>Stat</label><input type="text" data-rwd="stat" value="${esc(r.stat||'')}" placeholder="strength"></div>
+      <div class="item-edit-field"><label>Value</label><input type="number" data-rwd="value" value="${r.value||0}"></div>
+    </div>
+  </div>`;
+}
+
+function addQuestRewardRow() {
+  const container = document.getElementById('qe_rewards');
+  const div = document.createElement('div');
+  div.innerHTML = questRewardRowHtml({ type:'gold', amount:100, item:null, command:null, stat:null, value:0 });
+  container.appendChild(div.firstElementChild);
+}
+
+function collectQuestFromModal() {
+  const prereqStr = document.getElementById('qe_prereqQuests').value.trim();
+  const prereqQuests = prereqStr ? prereqStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const objectives = [];
+  document.querySelectorAll('#qe_objectives [data-obj-row]').forEach(row => {
+    const o = {};
+    o.type = row.querySelector('[data-obj="type"]').value;
+    o.description = row.querySelector('[data-obj="description"]').value.trim();
+    o.amount = parseInt(row.querySelector('[data-obj="amount"]').value) || 1;
+    o.entityType = row.querySelector('[data-obj="entityType"]').value.trim() || null;
+    o.entityName = row.querySelector('[data-obj="entityName"]').value.trim() || null;
+    o.item = row.querySelector('[data-obj="item"]').value.trim() || null;
+    o.block = row.querySelector('[data-obj="block"]').value.trim() || null;
+    o.npcId = row.querySelector('[data-obj="npcId"]').value.trim() || null;
+    o.fromNpc = row.querySelector('[data-obj="fromNpc"]').value.trim() || null;
+    o.customId = row.querySelector('[data-obj="customId"]').value.trim() || null;
+    o.dropChance = parseFloat(row.querySelector('[data-obj="dropChance"]').value) || 1.0;
+    o.x = parseFloat(row.querySelector('[data-obj="x"]').value) || 0;
+    o.y = parseFloat(row.querySelector('[data-obj="y"]').value) || 0;
+    o.z = parseFloat(row.querySelector('[data-obj="z"]').value) || 0;
+    o.radius = parseFloat(row.querySelector('[data-obj="radius"]').value) || 5;
+    o.level = parseInt(row.querySelector('[data-obj="level"]').value) || 0;
+    objectives.push(o);
+  });
+
+  const rewards = [];
+  document.querySelectorAll('#qe_rewards [data-rwd-row]').forEach(row => {
+    const r = {};
+    r.type = row.querySelector('[data-rwd="type"]').value;
+    r.amount = parseInt(row.querySelector('[data-rwd="amount"]').value) || 0;
+    r.item = row.querySelector('[data-rwd="item"]').value.trim() || null;
+    r.command = row.querySelector('[data-rwd="command"]').value.trim() || null;
+    r.stat = row.querySelector('[data-rwd="stat"]').value.trim() || null;
+    r.value = parseInt(row.querySelector('[data-rwd="value"]').value) || 0;
+    rewards.push(r);
+  });
+
+  return {
+    id: document.getElementById('qe_id').value.trim(),
+    title: document.getElementById('qe_title').value.trim(),
+    description: document.getElementById('qe_description').value.trim(),
+    category: document.getElementById('qe_category').value,
+    chainId: document.getElementById('qe_chainId').value.trim() || null,
+    chainOrder: parseInt(document.getElementById('qe_chainOrder').value) || 0,
+    nextQuest: document.getElementById('qe_nextQuest').value.trim() || null,
+    repeatable: document.getElementById('qe_repeatable').checked,
+    dailyReset: document.getElementById('qe_dailyReset').checked,
+    autoAccept: document.getElementById('qe_autoAccept').checked,
+    sortOrder: parseInt(document.getElementById('qe_sortOrder').value) || 0,
+    prerequisites: { quests: prereqQuests, minLevel: parseInt(document.getElementById('qe_minLevel').value) || 0 },
+    objectives,
+    rewards
+  };
+}
+
+async function saveQuestFromModal() {
+  const data = collectQuestFromModal();
+  if (!data.id) { showToast('Quest ID is required', 'error'); return; }
+  if (!data.title) { showToast('Title is required', 'error'); return; }
+
+  try {
+    let res;
+    if (editingQuestId) {
+      res = await api('POST', '/api/quests/' + encodeURIComponent(editingQuestId), data);
+    } else {
+      res = await api('POST', '/api/quests', data);
+    }
+    if (res.success) {
+      showToast(editingQuestId ? t('questSaved') : t('questAdded'), 'success');
+      closeQuestModal();
+      loadQuests();
+    } else {
+      showToast(res.error || (editingQuestId ? t('questSaveFail') : t('questAddFail')), 'error');
+    }
+  } catch(e) {
+    showToast(editingQuestId ? t('questSaveFail') : t('questAddFail'), 'error');
+  }
+}
+
+async function deleteQuest(idx) {
+  const q = allQuests[idx];
+  if (!q) return;
+  if (!confirm(t('deleteQuestConfirm'))) return;
+
+  try {
+    const res = await api('DELETE', '/api/quests/' + encodeURIComponent(q.id));
+    if (res.success) {
+      showToast(t('questDeleted'), 'success');
+      loadQuests();
+    } else {
+      showToast(res.error || t('questDeleteFail'), 'error');
+    }
+  } catch(e) {
+    showToast(t('questDeleteFail'), 'error');
+  }
+}
+
+function closeQuestModal() {
+  document.getElementById('questModal').classList.remove('active');
+}
+document.getElementById('questModal').addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) closeQuestModal();
+});
+
+// ========== Utils ==========
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function formatNum(n) { return Number(n).toLocaleString(); }
+
+function showToast(msg, type='info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.3s'; setTimeout(()=>toast.remove(),300); }, 3000);
+}
+
+// ========== Init ==========
+(function init() {
+  applyI18n();
+  if (authToken) {
+    // Verify token
+    api('GET', '/api/dashboard').then(() => showApp()).catch(() => doLogout());
+  }
+})();
+</script>
+</body>
+</html>
